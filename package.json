@@ -30,7 +30,7 @@
   "build": {
     "appId": "com.tizentube.windows",
     "productName": "TizenTube",
-    "copyright": "Copyright \u00a9 2026 Abdullah Shabib. GPL-3.0-only. Bundles TizenTube by Reis Can.",
+    "copyright": "Copyright © 2026 Abdullah Shabib. GPL-3.0-only. Bundles TizenTube by Reis Can.",
     "directories": {
       "output": "dist",
       "buildResources": "assets"
@@ -72,5 +72,8 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/abdullah-shabib/TizenTube-Windows.git"
+  },
+  "dependencies": {
+    "koffi": "^3.2.1"
   }
 }

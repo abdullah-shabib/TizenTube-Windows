@@ -10,6 +10,7 @@
 - ⏭️ **SponsorBlock Support**: Automatically skips sponsored segments, intros, outros, and interaction reminders.
 - 🔺 **DeArrow Integration**: Replaces clickbait thumbnails and titles with clear, community-submitted summaries.
 - 🎮 **Full Controller Support**: Navigate smoothly with Xbox (XInput), PlayStation (DualShock 4 / DualSense), Switch Pro, and generic DirectInput controllers.
+- 📳 **Haptic Vibration Feedback**: Native Windows XInput rumble for Xbox / 8BitDo controllers (and dual-rumble fallback for PlayStation/Switch Pro pads) with tactile feedback on button presses, stick movement, and connection.
 - 🖥️ **Smart Living Room Mode**: Borderless fullscreen by default, mouse cursor auto-hides during controller navigation or inactivity, and screensaver/display sleep is prevented during playback.
 - ⚙️ **In-App Quick Settings Overlay**: Press `Start` / `Menu` (or `F2`) at any time to open a visual controller tester, calibrate analog stick deadzones, adjust repeat delays, and toggle features.
 - 🔄 **Auto-Updating Script Engine**: Bundles an offline-ready script with automatic online checks for new TizenTube updates.
@@ -85,6 +86,7 @@ Custom settings and button bindings are automatically saved to:
 You can edit this file directly or use the in-app overlay (`Start` / `Menu` or `F2`) to configure:
 - **Deadzone**: Threshold to filter stick drift (default: `0.25`).
 - **Repeat Interval**: Milliseconds between repeated inputs when holding a direction (default: `110ms`).
+- **Controller Vibration**: Enable or disable controller tactile haptic feedback (default: `true`).
 - **Auto-Hide Cursor**: Whether to automatically hide the mouse cursor (default: `true`).
 - **Prevent Display Sleep**: Keep screen awake during playback (default: `true`).
 - **Auto-Update Script**: Fetch the pinned TizenTube release from the CDN (default: `true`).

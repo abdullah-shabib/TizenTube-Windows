@@ -333,6 +333,7 @@
   const FOCUS_ORDER = [
     { id: 'tt-input-deadzone', type: 'range' },
     { id: 'tt-input-repeat', type: 'range' },
+    { id: 'tt-toggle-vibration', type: 'checkbox' },
     { id: 'tt-toggle-fullscreen', type: 'checkbox' },
     { id: 'tt-toggle-autohide', type: 'checkbox' },
     { id: 'tt-toggle-sleep', type: 'checkbox' },
@@ -465,6 +466,17 @@
                 <span class="tt-value-display" id="tt-val-repeat">110ms</span>
               </div>
             </div>
+
+            <div class="tt-control-row">
+              <div>
+                <div class="tt-label">Controller Vibration</div>
+                <div class="tt-sublabel">Tactile haptic feedback on button presses and stick navigation.</div>
+              </div>
+              <label class="tt-switch">
+                <input type="checkbox" id="tt-toggle-vibration">
+                <span class="tt-switch-slider"></span>
+              </label>
+            </div>
           </div>
 
           <!-- Section 3: Display & Features -->
@@ -575,6 +587,7 @@
       this.setValue('tt-input-repeat', rp);
       this.setText('tt-val-repeat', rp + 'ms');
 
+      this.setChecked('tt-toggle-vibration', controller.vibration !== false);
       this.setChecked('tt-toggle-fullscreen', display.fullscreen);
       this.setChecked('tt-toggle-autohide', display.autoHideCursor);
       this.setChecked('tt-toggle-sleep', display.preventDisplaySleep);
@@ -623,6 +636,15 @@
       });
 
       // Toggles
+      this.on('tt-toggle-vibration', 'change', (e) => {
+        if (!this.config) return;
+        if (!this.config.controller) this.config.controller = {};
+        this.config.controller.vibration = e.target.checked;
+        this.pushConfigToController();
+        if (e.target.checked && window.TizenTubeGamepadManager) {
+          window.TizenTubeGamepadManager.triggerHaptic('test', 0);
+        }
+      });
       this.on('tt-toggle-fullscreen', 'change', (e) => {
         if (this.config) this.config.display.fullscreen = e.target.checked;
       });

@@ -36,6 +36,7 @@ const DEFAULT_CONFIG = {
   version: CONFIG_VERSION,
   controller: {
     enabled: true,
+    vibration: true,
     deadzone: 0.25,
     initialDelayMs: 250,
     repeatIntervalMs: 110,

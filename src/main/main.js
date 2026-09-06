@@ -18,6 +18,9 @@ const fs = require('fs');
 const https = require('https');
 const crypto = require('crypto');
 const configManager = require('./config');
+const NativeVibrationManager = require('./native-vibration');
+
+const nativeVibration = new NativeVibrationManager();
 
 // Disable Blink features that block userscripts and dynamic code
 app.commandLine.appendSwitch('disable-blink-features', 'TrustedTypes,TrustedTypesEnforcement');
@@ -226,6 +229,9 @@ function createWindow() {
   // Prevent display sleep during app execution
   applyPowerSaveSetting(config.display.preventDisplaySleep);
 
+  // Configure native controller haptic vibration
+  nativeVibration.setEnabled(config.controller && config.controller.vibration !== false);
+
   // Check for script updates asynchronously if enabled
   if (config.tizentube.autoUpdateScript) {
     checkForScriptUpdates(config);
@@ -325,6 +331,13 @@ ipcMain.on('send-native-key', (event, { keyCode }) => {
   }
 });
 
+// Native controller haptic vibration dispatch
+ipcMain.on('controller-vibrate', (event, { type, slot }) => {
+  if (nativeVibration && nativeVibration.isAvailable()) {
+    nativeVibration.pulse(type || 'button', slot || 0);
+  }
+});
+
 // IPC Handlers
 ipcMain.handle('get-config', () => {
   return configManager.get();
@@ -333,6 +346,7 @@ ipcMain.handle('get-config', () => {
 ipcMain.handle('save-config', (event, newConfig) => {
   const updated = configManager.set(newConfig);
   applyPowerSaveSetting(updated.display.preventDisplaySleep);
+  nativeVibration.setEnabled(updated.controller && updated.controller.vibration !== false);
   if (mainWindow && typeof updated.display.fullscreen === 'boolean') {
     if (mainWindow.isFullScreen() !== updated.display.fullscreen) {
       mainWindow.setFullScreen(updated.display.fullscreen);
@@ -403,6 +417,7 @@ if (!app.requestSingleInstanceLock()) {
 
 app.on('window-all-closed', () => {
   applyPowerSaveSetting(false);
+  nativeVibration.stopAll();
   if (process.platform !== 'darwin') {
     app.quit();
   }

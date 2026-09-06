@@ -44,6 +44,7 @@
   // leave the app without controller input.
   const FALLBACK_CONTROLLER = {
     enabled: true,
+    vibration: true,
     deadzone: 0.25,
     initialDelayMs: 250,
     repeatIntervalMs: 110,
@@ -232,6 +233,32 @@
       }
     }
 
+    triggerHaptic(type, slot = 0) {
+      const controller = (this.config && this.config.controller) || {};
+      if (controller.vibration === false) return;
+
+      // 1. Native XInput haptic feedback via Electron main process
+      ipcRenderer.send('controller-vibrate', { type, slot: slot || 0 });
+
+      // 2. Web Gamepad vibrationActuator fallback for non-XInput controllers
+      try {
+        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        const pad = gamepads[slot];
+        if (pad && pad.vibrationActuator && typeof pad.vibrationActuator.playEffect === 'function') {
+          const durations = { connect: 100, button: 35, stick: 20, test: 80 };
+          const intensities = { connect: 0.28, button: 0.12, stick: 0.08, test: 0.22 };
+          const dur = durations[type] || 35;
+          const mag = intensities[type] || 0.12;
+          pad.vibrationActuator.playEffect('dual-rumble', {
+            startDelay: 0,
+            duration: dur,
+            weakMagnitude: mag,
+            strongMagnitude: mag
+          }).catch(() => {});
+        }
+      } catch (e) {}
+    }
+
     handleDirection(dirName, isPressed, now) {
       const state = this.directionStates[dirName];
       const controller = (this.config && this.config.controller) || {};
@@ -244,6 +271,7 @@
           state.isPressed = true;
           state.firstPressedTime = now;
           state.lastRepeatTime = now;
+          this.triggerHaptic('stick', this.activeGamepadIndex || 0);
           this.executeAction(actionName);
         } else if (now - state.firstPressedTime >= initialDelay &&
                    now - state.lastRepeatTime >= repeatInterval) {
@@ -280,6 +308,7 @@
           console.log('[TizenTube Controller] Active gamepad detected:', gamepad.id,
             'axes:', gamepad.axes.length, 'buttons:', gamepad.buttons.length);
           this.lastLoggedGamepadId = gamepad.id;
+          this.triggerHaptic('connect', gamepad.index);
         }
 
         // Always notify listeners, including with null, so the HUD can report
@@ -334,6 +363,7 @@
             if (isPressed) {
               if (!bState.isPressed) {
                 bState.isPressed = true;
+                this.triggerHaptic('button', gamepad.index);
                 if (binding && binding.action) {
                   this.executeAction(binding.action);
                 }
