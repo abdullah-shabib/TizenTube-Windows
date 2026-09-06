@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+out/
+build/
+*.exe
+*.msi
+*.blockmap
+
+# Local runtime data / user settings
+.data/
+*.log
+*.bak
+*.rejected
+*.corrupt-backup
+
+# Editor / OS
+.claude/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Env
+.env
+.env.local

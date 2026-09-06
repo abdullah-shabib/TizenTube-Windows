@@ -1,0 +1,76 @@
+{
+  "name": "tizentube-windows",
+  "version": "1.0.0",
+  "description": "TizenTube Cobalt for Windows - Ad-free YouTube TV with SponsorBlock and Controller Support",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:portable": "electron-builder --win portable",
+    "dist:installer": "electron-builder --win nsis",
+    "pin-script": "node scripts/pin-script.js"
+  },
+  "keywords": [
+    "tizentube",
+    "cobalt",
+    "youtube-tv",
+    "leanback",
+    "sponsorblock",
+    "controller",
+    "gamepad",
+    "electron"
+  ],
+  "author": "Abdullah Shabib",
+  "license": "GPL-3.0-only",
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.tizentube.windows",
+    "productName": "TizenTube",
+    "copyright": "Copyright \u00a9 2026 Abdullah Shabib. GPL-3.0-only. Bundles TizenTube by Reis Can.",
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-${os}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "TizenTube"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.${ext}"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abdullah-shabib/TizenTube-Windows.git"
+  }
+}
