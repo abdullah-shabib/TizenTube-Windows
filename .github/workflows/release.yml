@@ -81,28 +81,16 @@ jobs:
             dist/*.exe
             dist/SHA256SUMS.txt
           body: |
-            ## Downloads
+            `TizenTube-*-win-x64.exe` is the installer, `TizenTube-*-portable.exe`
+            runs from anywhere. Check them against `SHA256SUMS.txt`.
 
-            | File | Description |
-            | :--- | :--- |
-            | `TizenTube-*-win-x64.exe` | Installer |
-            | `TizenTube-*-portable.exe` | Portable, run from anywhere |
+            The binaries are not code-signed, so SmartScreen will warn on first
+            run: *More info* then *Run anyway*.
 
-            Verify your download against `SHA256SUMS.txt`.
-
-            > **These binaries are not code-signed.** Windows SmartScreen will warn
-            > on first run: choose *More info* then *Run anyway*, after checking the
-            > checksum above.
-
-            ## Licence and source
-
-            Licensed **GPL-3.0-only**. Complete corresponding source for these
-            binaries is this repository at the tag above.
-
-            These builds include the [TizenTube](https://github.com/reisxd/TizenTube)
-            userscript by **Reis Can**, GPL-3.0-only and unmodified — all the
-            ad-blocking, SponsorBlock and DeArrow behaviour comes from that project.
-            Please consider [sponsoring the upstream author](https://github.com/sponsors/reisxd).
-            See [NOTICE.md](NOTICE.md) for full attribution.
+            GPL-3.0-only. Source for these binaries is this repository at this tag.
+            They include the [TizenTube](https://github.com/reisxd/TizenTube)
+            userscript by Reis Can, unmodified - the ad-blocking, SponsorBlock and
+            DeArrow work is all his, so [sponsor him](https://github.com/sponsors/reisxd).
+            See NOTICE.md for full attribution.
 
             Not affiliated with Google, YouTube, Samsung, the Tizen project, or TizenTube.

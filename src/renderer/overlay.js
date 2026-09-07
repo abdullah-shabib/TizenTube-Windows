@@ -408,7 +408,7 @@
         <div class="tt-modal" role="dialog">
           <div class="tt-header">
             <div class="tt-title">
-              <span>💠 TizenTube Settings</span>
+              <span>TizenTube Settings</span>
             </div>
             <button class="tt-close-btn" id="tt-btn-close">Close / Resume (B or Start)</button>
           </div>

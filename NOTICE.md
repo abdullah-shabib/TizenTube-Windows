@@ -1,32 +1,28 @@
-# Notice, Attribution & Disclaimer
+# Notice and attribution
 
-## Third-party code bundled in this repository
+## Bundled third-party code
 
-This project is **not** a fork of TizenTube. No source file in `src/main`,
-`src/preload` or `src/renderer` is derived from any upstream project; that code
-is original to this repository.
-
-However, this repository **redistributes** one third-party work:
+This project is not a fork of TizenTube. Nothing under `src/main`, `src/preload`
+or `src/renderer` is derived from another project. It does redistribute one
+third-party file:
 
 | | |
 | :--- | :--- |
-| **File** | `src/scripts/tizentube-bundle.js` |
-| **Upstream project** | [TizenTube](https://github.com/reisxd/TizenTube) by Reis Can (reisxd) |
-| **npm package** | `@foxreis/tizentube` |
-| **Version** | `1.14.8` |
-| **SHA-256** | `0b535d9a870f9905a8b9d399d92453cb463ff35d1a9750b8f6cbe6ee60306108` |
-| **Licence** | **GPL-3.0-only** |
-| **Modified?** | **No.** The file is the unmodified `dist/userScript.js` build output of that release. |
+| File | `src/scripts/tizentube-bundle.js` |
+| Upstream | [TizenTube](https://github.com/reisxd/TizenTube) by Reis Can (reisxd) |
+| npm package | `@foxreis/tizentube` |
+| Version | `1.14.8` |
+| SHA-256 | `0b535d9a870f9905a8b9d399d92453cb463ff35d1a9750b8f6cbe6ee60306108` |
+| Licence | GPL-3.0-only |
+| Modified | No. It is the unmodified `dist/userScript.js` from that release. |
 
 Corresponding source for that build is the upstream repository at the tagged
 release above: <https://github.com/reisxd/TizenTube>.
 
-The bundled digest is enforced at runtime — see *Userscript Integrity Pinning* in
-the README. Any copy that does not match the digest above is rejected, so the
-provenance recorded here is verifiable rather than merely asserted.
+That digest is checked at runtime; anything that does not match is rejected, so
+the provenance above can be verified rather than taken on trust.
 
-Please consider supporting the upstream author:
-[GitHub Sponsors](https://github.com/sponsors/reisxd).
+If you find this useful, [sponsor Reis Can](https://github.com/sponsors/reisxd).
 
 ### Runtime dependencies
 
@@ -37,7 +33,7 @@ Please consider supporting the upstream author:
 Electron and electron-builder are development dependencies (MIT). These are
 permissively licensed and compatible with this project's GPL-3.0-only terms.
 
-## Licence of this project
+## Licence
 
 Because this application loads and executes the GPL-3.0-only userscript inside
 its own process, the combined work is distributed under the **GNU General Public
@@ -46,11 +42,11 @@ License, version 3 only**. See [LICENSE](LICENSE).
 If you distribute binaries built from this repository, GPL-3.0 §6 requires you to
 also make the corresponding source available.
 
-## Not affiliated with Google, YouTube, Samsung, or TizenTube
+## Affiliation
 
-**This is an unofficial, independent project. It is not affiliated with, endorsed
+This is an unofficial, independent project. It is not affiliated with, endorsed
 by, sponsored by, or connected to Google LLC, YouTube, Samsung, the Tizen
-project, or the TizenTube project.**
+project, or the TizenTube project.
 
 "YouTube", "YouTube TV" and related marks are trademarks of Google LLC. "Tizen"
 is a trademark of its respective owner. "TizenTube" is the name of the upstream
@@ -58,7 +54,7 @@ project by Reis Can. These names appear here only to describe what this software
 is built on and compatible with — nominative use. No logo, wordmark, or brand
 asset belonging to any of them is reproduced or imitated.
 
-## What this software does
+## What it does
 
 This application:
 
@@ -66,10 +62,10 @@ This application:
 - sends a TV user-agent string so that site serves its 10-foot interface,
 - reads a game controller via the HTML5 Gamepad API and translates its input into
   ordinary keyboard events, and
-- injects the bundled TizenTube userscript, which **blocks advertising** and adds
+- injects the bundled TizenTube userscript, which blocks advertising and adds
   SponsorBlock and DeArrow behaviour to that interface.
 
-It does **not** download, copy, record, redistribute, decrypt, or circumvent any
+It does not download, copy, record, redistribute, decrypt, or circumvent any
 access control on any video or audio content. All media is played by the site
 itself, in an ordinary browser engine, as that site delivers it.
 
