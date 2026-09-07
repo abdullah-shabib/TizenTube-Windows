@@ -9,7 +9,9 @@
     "dist": "electron-builder",
     "dist:portable": "electron-builder --win portable",
     "dist:installer": "electron-builder --win nsis",
-    "pin-script": "node scripts/pin-script.js"
+    "pin-script": "node scripts/pin-script.js",
+    "verify-pin": "node scripts/verify-pin.js",
+    "test": "node scripts/verify-pin.js"
   },
   "keywords": [
     "tizentube",
@@ -30,7 +32,7 @@
   "build": {
     "appId": "com.tizentube.windows",
     "productName": "TizenTube",
-    "copyright": "Copyright © 2026 Abdullah Shabib. GPL-3.0-only. Bundles TizenTube by Reis Can.",
+    "copyright": "Copyright \u00a9 2026 Abdullah Shabib. GPL-3.0-only. Bundles TizenTube by Reis Can.",
     "directories": {
       "output": "dist",
       "buildResources": "assets"

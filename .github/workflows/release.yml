@@ -1,0 +1,108 @@
+name: Release
+
+# Cut a release by pushing a tag:
+#   git tag v1.0.0 && git push origin v1.0.0
+#
+# Builds the installer and portable exe on a clean Windows runner and attaches
+# them, with checksums, to a DRAFT GitHub release so the notes can be reviewed
+# before anything goes public.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The vendored userscript executes with full Node privileges, so refuse to
+      # build if it no longer matches the SHA-256 pinned in src/main/config.js.
+      - name: Verify userscript pin and sources
+        run: npm test
+
+      - name: Build installer and portable exe
+        run: npx electron-builder --win --publish never
+
+      # koffi is a native binding and must sit outside the asar, or rumble dies
+      # in the packaged app. Fail the build rather than ship it broken.
+      - name: Verify native module was unpacked from the asar
+        shell: pwsh
+        run: |
+          $node = Get-ChildItem -Path dist/win-unpacked/resources/app.asar.unpacked -Recurse -Filter koffi.node -ErrorAction SilentlyContinue
+          if (-not $node) {
+            Write-Error "koffi.node was not unpacked from the asar; native vibration would fail at runtime."
+            exit 1
+          }
+          Write-Output "koffi.node unpacked at $($node.FullName)"
+
+      - name: Generate checksums
+        shell: pwsh
+        run: |
+          cd dist
+          Get-ChildItem -Filter *.exe | ForEach-Object {
+            $hash = (Get-FileHash $_.Name -Algorithm SHA256).Hash.ToLower()
+            "$hash *$($_.Name)"
+          } | Out-File -FilePath SHA256SUMS.txt -Encoding ascii
+          Get-Content SHA256SUMS.txt
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tizentube-windows
+          path: |
+            dist/*.exe
+            dist/SHA256SUMS.txt
+
+      # Draft, so the notes can be reviewed before anything goes public.
+      - name: Create draft release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          files: |
+            dist/*.exe
+            dist/SHA256SUMS.txt
+          body: |
+            ## Downloads
+
+            | File | Description |
+            | :--- | :--- |
+            | `TizenTube-*-win-x64.exe` | Installer |
+            | `TizenTube-*-portable.exe` | Portable, run from anywhere |
+
+            Verify your download against `SHA256SUMS.txt`.
+
+            > **These binaries are not code-signed.** Windows SmartScreen will warn
+            > on first run: choose *More info* then *Run anyway*, after checking the
+            > checksum above.
+
+            ## Licence and source
+
+            Licensed **GPL-3.0-only**. Complete corresponding source for these
+            binaries is this repository at the tag above.
+
+            These builds include the [TizenTube](https://github.com/reisxd/TizenTube)
+            userscript by **Reis Can**, GPL-3.0-only and unmodified — all the
+            ad-blocking, SponsorBlock and DeArrow behaviour comes from that project.
+            Please consider [sponsoring the upstream author](https://github.com/sponsors/reisxd).
+            See [NOTICE.md](NOTICE.md) for full attribution.
+
+            Not affiliated with Google, YouTube, Samsung, the Tizen project, or TizenTube.
