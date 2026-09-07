@@ -19,12 +19,21 @@
  * reliable controller haptic feedback on Xbox, 8BitDo, and XInput-compatible gamepads.
  */
 
-const koffi = require('koffi');
+// koffi is a native binding. If its prebuilt binary is missing or fails to load
+// (a packaging mistake, an unsupported arch), that must cost us rumble and
+// nothing else - main.js requires this module at load time, so a throw here
+// would stop the whole app from starting.
+let koffi = null;
+try {
+  koffi = require('koffi');
+} catch (err) {
+  console.warn('[TizenTube Vibration] koffi unavailable, rumble disabled:', err.message);
+}
 
 let typesRegistered = false;
 
 function registerXInputTypes() {
-  if (typesRegistered) return;
+  if (typesRegistered || !koffi) return;
 
   koffi.struct('XINPUT_VIBRATION_NATIVE', {
     wLeftMotorSpeed: 'uint16',
@@ -57,6 +66,7 @@ class NativeVibrationManager {
   }
 
   init() {
+    if (!koffi) return;
     try {
       const dlls = ['xinput1_4.dll', 'xinput1_3.dll', 'xinput9_1_0.dll'];
       for (const dll of dlls) {

@@ -338,6 +338,12 @@ ipcMain.on('controller-vibrate', (event, { type, slot }) => {
   }
 });
 
+// Lets the renderer decide whether it needs the Web Gamepad actuator fallback,
+// so the two haptic paths never drive the same motors at once.
+ipcMain.handle('vibration-available', () => {
+  return !!(nativeVibration && nativeVibration.isAvailable());
+});
+
 // IPC Handlers
 ipcMain.handle('get-config', () => {
   return configManager.get();

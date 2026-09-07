@@ -36,6 +36,14 @@
     SeekRight:  { nativeCode: 'Right' }
   };
 
+  // Web Gamepad actuator equivalents of the native XInput haptic profiles.
+  const WEB_HAPTIC_EFFECTS = {
+    connect: { duration: 100, magnitude: 0.28 },
+    button:  { duration: 35,  magnitude: 0.12 },
+    stick:   { duration: 20,  magnitude: 0.08 },
+    test:    { duration: 80,  magnitude: 0.22 }
+  };
+
   // Buttons 12-15 are the D-Pad and are handled by the direction/repeat logic.
   const DPAD_FIRST = 12;
   const DPAD_LAST = 15;
@@ -86,6 +94,7 @@
         right: { isPressed: false, firstPressedTime: 0, lastRepeatTime: 0 }
       };
 
+      this.nativeHapticsAvailable = true;
       this.cursorStyleEl = null;
       this.cursorHideTimer = null;
       this.isCursorHidden = false;
@@ -108,6 +117,10 @@
         this.isPolling = true;
         requestAnimationFrame(this.poll);
       }
+
+      ipcRenderer.invoke('vibration-available')
+        .then((available) => { this.nativeHapticsAvailable = !!available; })
+        .catch(() => { this.nativeHapticsAvailable = false; });
 
       try {
         this.setupWindowListeners();
@@ -233,27 +246,30 @@
       }
     }
 
+    // Exactly one haptic path runs per pulse. Native XInput and the Web Gamepad
+    // actuator both end up driving the same motors on Windows, so firing both
+    // makes them fight over magnitude and cut each other's pulse short.
     triggerHaptic(type, slot = 0) {
       const controller = (this.config && this.config.controller) || {};
       if (controller.vibration === false) return;
 
-      // 1. Native XInput haptic feedback via Electron main process
-      ipcRenderer.send('controller-vibrate', { type, slot: slot || 0 });
+      if (this.nativeHapticsAvailable) {
+        ipcRenderer.send('controller-vibrate', { type, slot: slot || 0 });
+        return;
+      }
 
-      // 2. Web Gamepad vibrationActuator fallback for non-XInput controllers
+      // No native XInput (a DualSense/DualShock over Bluetooth, or the koffi
+      // binding did not load), so drive the pad through the browser instead.
       try {
         const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
         const pad = gamepads[slot];
         if (pad && pad.vibrationActuator && typeof pad.vibrationActuator.playEffect === 'function') {
-          const durations = { connect: 100, button: 35, stick: 20, test: 80 };
-          const intensities = { connect: 0.28, button: 0.12, stick: 0.08, test: 0.22 };
-          const dur = durations[type] || 35;
-          const mag = intensities[type] || 0.12;
+          const effect = WEB_HAPTIC_EFFECTS[type] || WEB_HAPTIC_EFFECTS.button;
           pad.vibrationActuator.playEffect('dual-rumble', {
             startDelay: 0,
-            duration: dur,
-            weakMagnitude: mag,
-            strongMagnitude: mag
+            duration: effect.duration,
+            weakMagnitude: effect.magnitude,
+            strongMagnitude: effect.magnitude
           }).catch(() => {});
         }
       } catch (e) {}
@@ -363,8 +379,10 @@
             if (isPressed) {
               if (!bState.isPressed) {
                 bState.isPressed = true;
-                this.triggerHaptic('button', gamepad.index);
+                // Only for a button that does something: rumbling an unbound
+                // trigger or stick-click promises an action that never happens.
                 if (binding && binding.action) {
+                  this.triggerHaptic('button', gamepad.index);
                   this.executeAction(binding.action);
                 }
               }
