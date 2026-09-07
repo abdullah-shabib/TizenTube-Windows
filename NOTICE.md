@@ -28,6 +28,15 @@ provenance recorded here is verifiable rather than merely asserted.
 Please consider supporting the upstream author:
 [GitHub Sponsors](https://github.com/sponsors/reisxd).
 
+### Runtime dependencies
+
+| Package | Purpose | Licence |
+| :--- | :--- | :--- |
+| [koffi](https://github.com/Koromix/koffi) | Calls into the Windows `xinput1_4.dll` system library for controller vibration | MIT |
+
+Electron and electron-builder are development dependencies (MIT). These are
+permissively licensed and compatible with this project's GPL-3.0-only terms.
+
 ## Licence of this project
 
 Because this application loads and executes the GPL-3.0-only userscript inside
