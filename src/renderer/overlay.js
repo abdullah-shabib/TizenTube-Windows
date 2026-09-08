@@ -427,6 +427,10 @@
     { id: 'tt-input-deadzone', type: 'range' },
     { id: 'tt-input-repeat', type: 'range' },
     { id: 'tt-toggle-vibration', type: 'checkbox' },
+    { id: 'tt-toggle-discord', type: 'checkbox' },
+    { id: 'tt-toggle-tray', type: 'checkbox' },
+    { id: 'tt-btn-pip', type: 'button' },
+    { id: 'tt-select-sleeptimer', type: 'select' },
     { id: 'tt-toggle-fullscreen', type: 'checkbox' },
     { id: 'tt-toggle-autohide', type: 'checkbox' },
     { id: 'tt-toggle-sleep', type: 'checkbox' },
@@ -667,6 +671,60 @@
             </div>
           </div>
 
+          <!-- Section 5: Windows & HTPC Integration -->
+          <div class="tt-section">
+            <div class="tt-section-title">Windows & HTPC Integration</div>
+
+            <div class="tt-control-row">
+              <div>
+                <div class="tt-label">Discord Rich Presence</div>
+                <div class="tt-sublabel">Show current video, channel, and playback time on your Discord profile.</div>
+              </div>
+              <label class="tt-switch">
+                <input type="checkbox" id="tt-toggle-discord">
+                <span class="tt-switch-slider"></span>
+              </label>
+            </div>
+
+            <div class="tt-control-row">
+              <div>
+                <div class="tt-label">Minimize to System Tray</div>
+                <div class="tt-sublabel">Keep audio playing in the background without taskbar clutter when minimized.</div>
+              </div>
+              <label class="tt-switch">
+                <input type="checkbox" id="tt-toggle-tray">
+                <span class="tt-switch-slider"></span>
+              </label>
+            </div>
+
+            <div class="tt-control-row">
+              <div>
+                <div class="tt-label">Mini-Player (Picture-in-Picture)</div>
+                <div class="tt-sublabel">Compact floating borderless window (Hotkey: Ctrl+Shift+P or Alt+P).</div>
+              </div>
+              <button class="tt-action-btn" id="tt-btn-pip" style="padding: 6px 16px; font-size: 13px;">Toggle Mini-Player</button>
+            </div>
+
+            <div class="tt-control-row">
+              <div>
+                <div class="tt-label">Sleep Timer</div>
+                <div class="tt-sublabel">Automatically closes the app after the selected duration.</div>
+              </div>
+              <div class="tt-slider-group">
+                <select id="tt-select-sleeptimer" style="background: var(--tt-bg); color: var(--tt-text); border: 1px solid var(--tt-border-2); border-radius: var(--tt-radius-pill); padding: 6px 12px; font-size: 13px; font-family: var(--tt-font); cursor: pointer;">
+                  <option value="0">Off</option>
+                  <option value="15">15 Minutes</option>
+                  <option value="30">30 Minutes</option>
+                  <option value="45">45 Minutes</option>
+                  <option value="60">60 Minutes</option>
+                  <option value="90">90 Minutes</option>
+                  <option value="120">120 Minutes</option>
+                </select>
+                <span class="tt-value-display" id="tt-val-sleeptimer" style="min-width: 60px; font-size: 12px; color: var(--tt-accent);">Off</span>
+              </div>
+            </div>
+          </div>
+
           <!-- Footer Actions: pinned to the bottom of the dialog -->
           <div class="tt-actions">
             <div class="tt-footer">
@@ -746,6 +804,25 @@
       this.setChecked('tt-toggle-sleep', display.preventDisplaySleep);
       this.setChecked('tt-toggle-autoupdate', tizentube.autoUpdateScript);
       this.setChecked('tt-toggle-appupdate', (this.config.updates || {}).autoCheck !== false);
+
+      const discord = this.config.discord || {};
+      const system = this.config.system || {};
+      this.setChecked('tt-toggle-discord', discord.enabled !== false);
+      this.setChecked('tt-toggle-tray', system.minimizeToTray !== false);
+
+      ipcRenderer.invoke('get-sleep-timer').then((status) => {
+        if (status && status.active && status.remainingMs > 0) {
+          const mins = Math.ceil(status.remainingMs / 60000);
+          this.setText('tt-val-sleeptimer', mins + 'm left');
+        } else {
+          this.setText('tt-val-sleeptimer', 'Off');
+        }
+      }).catch(() => {});
+
+      ipcRenderer.invoke('is-pip').then((pipActive) => {
+        const btn = document.getElementById('tt-btn-pip');
+        if (btn) btn.textContent = pipActive ? 'Exit Mini-Player' : 'Toggle Mini-Player';
+      }).catch(() => {});
 
       // If started in windowed mode, show startup prompt
       if (!display.fullscreen) {
@@ -847,6 +924,31 @@
       this.on('tt-toggle-autoupdate', 'change', (e) => {
         if (this.config) this.config.tizentube.autoUpdateScript = e.target.checked;
       });
+      this.on('tt-toggle-discord', 'change', (e) => {
+        if (!this.config) return;
+        this.config.discord = this.config.discord || {};
+        this.config.discord.enabled = e.target.checked;
+      });
+      this.on('tt-toggle-tray', 'change', (e) => {
+        if (!this.config) return;
+        this.config.system = this.config.system || {};
+        this.config.system.minimizeToTray = e.target.checked;
+      });
+
+      this.on('tt-btn-pip', 'click', () => {
+        ipcRenderer.invoke('toggle-pip');
+      });
+
+      this.on('tt-select-sleeptimer', 'change', (e) => {
+        const mins = parseInt(e.target.value, 10);
+        ipcRenderer.invoke('set-sleep-timer', { minutes: mins }).then((res) => {
+          if (res && res.active) {
+            this.setText('tt-val-sleeptimer', Math.ceil(res.remainingMs / 60000) + 'm left');
+          } else {
+            this.setText('tt-val-sleeptimer', 'Off');
+          }
+        }).catch(() => {});
+      });
 
       // Buttons
       this.on('tt-btn-close', 'click', () => this.toggle(false));
@@ -875,6 +977,22 @@
       // Window events from GamepadManager & Main Process
       window.addEventListener('tizentube-toggle-overlay', () => this.toggle());
       ipcRenderer.on('toggle-overlay', () => this.toggle());
+
+      ipcRenderer.on('pip-changed', (event, active) => {
+        const btn = document.getElementById('tt-btn-pip');
+        if (btn) btn.textContent = active ? 'Exit Mini-Player' : 'Toggle Mini-Player';
+      });
+
+      ipcRenderer.on('sleep-timer-status', (event, status) => {
+        if (status && status.active && status.remainingMs > 0) {
+          const mins = Math.ceil(status.remainingMs / 60000);
+          this.setText('tt-val-sleeptimer', mins + 'm left');
+        } else {
+          this.setText('tt-val-sleeptimer', 'Off');
+          const select = document.getElementById('tt-select-sleeptimer');
+          if (select) select.value = '0';
+        }
+      });
 
       // The resulting fullscreen-changed broadcast updates our copy and the UI.
       window.addEventListener('tizentube-toggle-fullscreen', () => {
@@ -1088,6 +1206,15 @@
         // only way to change a toggle.
         case 'ArrowLeft':
         case 'ArrowRight': {
+          if (entry.type === 'select') {
+            const forward = action === 'ArrowRight';
+            const nextIdx = entry.el.selectedIndex + (forward ? 1 : -1);
+            if (nextIdx >= 0 && nextIdx < entry.el.options.length) {
+              entry.el.selectedIndex = nextIdx;
+              entry.el.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            break;
+          }
           if (entry.type !== 'range') break;
           const forward = action === 'ArrowRight';
           const step = parseFloat(entry.el.step) || 1;
@@ -1105,6 +1232,10 @@
             entry.el.dispatchEvent(new Event('change', { bubbles: true }));
           } else if (entry.type === 'button') {
             entry.el.click();
+          } else if (entry.type === 'select') {
+            const nextIdx = (entry.el.selectedIndex + 1) % entry.el.options.length;
+            entry.el.selectedIndex = nextIdx;
+            entry.el.dispatchEvent(new Event('change', { bubbles: true }));
           }
           break;
         default:

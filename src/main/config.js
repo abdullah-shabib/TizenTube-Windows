@@ -63,11 +63,19 @@ const DEFAULT_CONFIG = {
     fullscreen: true,
     autoHideCursor: true,
     cursorHideDelayMs: 3000,
-    preventDisplaySleep: true
+    preventDisplaySleep: true,
+    windowBounds: null
   },
   audio: {
     volume: 1.0,
     muted: false
+  },
+  discord: {
+    enabled: true,
+    clientId: '463097721130188830'
+  },
+  features: {
+    sleepTimerMinutes: 0
   },
   updates: {
     // Checks this project's GitHub releases on startup. Only meaningful for
@@ -96,7 +104,8 @@ const DEFAULT_CONFIG = {
     // Switch profiles with userAgentProfile, or set it to 'custom' and put your
     // own string in userAgent.
     userAgentProfile: 'ps4',
-    userAgent: USER_AGENTS.ps4
+    userAgent: USER_AGENTS.ps4,
+    minimizeToTray: true
   }
 };
 

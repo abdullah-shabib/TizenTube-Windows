@@ -232,6 +232,7 @@
 
     executeAction(action) {
       this.hideCursor();
+      ipcRenderer.send('user-activity-ping');
 
       if (action === 'ToggleOverlay') {
         window.dispatchEvent(new CustomEvent('tizentube-toggle-overlay'));
@@ -240,6 +241,11 @@
 
       if (action === 'ToggleFullscreen') {
         window.dispatchEvent(new CustomEvent('tizentube-toggle-fullscreen'));
+        return;
+      }
+
+      if (action === 'TogglePiP') {
+        ipcRenderer.invoke('toggle-pip');
         return;
       }
 

@@ -100,6 +100,195 @@ async function injectTizenTubeScript() {
   }
 }
 
+// MediaSession, SMTC, and external media action synchronization
+function initMediaSessionIntegration() {
+  let lastMediaState = {
+    title: '',
+    author: '',
+    videoId: '',
+    isPlaying: false
+  };
+
+  const getPlayer = () => document.getElementById('movie_player');
+  const getVideo = () => document.querySelector('video');
+
+  // Setup navigator.mediaSession action handlers once
+  if ('mediaSession' in navigator) {
+    const safeSet = (action, handler) => {
+      try {
+        navigator.mediaSession.setActionHandler(action, handler);
+      } catch (e) {}
+    };
+
+    safeSet('play', () => {
+      const p = getPlayer();
+      if (p && typeof p.playVideo === 'function') p.playVideo();
+      else {
+        const v = getVideo();
+        if (v) v.play();
+      }
+    });
+
+    safeSet('pause', () => {
+      const p = getPlayer();
+      if (p && typeof p.pauseVideo === 'function') p.pauseVideo();
+      else {
+        const v = getVideo();
+        if (v) v.pause();
+      }
+    });
+
+    safeSet('nexttrack', () => {
+      const p = getPlayer();
+      if (p && typeof p.nextVideo === 'function') p.nextVideo();
+    });
+
+    safeSet('previoustrack', () => {
+      const p = getPlayer();
+      if (p && typeof p.previousVideo === 'function') p.previousVideo();
+    });
+
+    safeSet('seekto', (details) => {
+      const v = getVideo();
+      if (v && details && details.seekTime !== undefined) {
+        v.currentTime = details.seekTime;
+      }
+    });
+
+    safeSet('seekbackward', (details) => {
+      const v = getVideo();
+      if (v) {
+        v.currentTime = Math.max(0, v.currentTime - ((details && details.seekOffset) || 10));
+      }
+    });
+
+    safeSet('seekforward', (details) => {
+      const v = getVideo();
+      if (v) {
+        v.currentTime = Math.min(v.duration || 999999, v.currentTime + ((details && details.seekOffset) || 10));
+      }
+    });
+
+    safeSet('stop', () => {
+      const v = getVideo();
+      if (v) v.pause();
+    });
+  }
+
+  // Poll video & player state
+  function updateMediaStatus() {
+    try {
+      const player = getPlayer();
+      const video = getVideo();
+
+      let title = '';
+      let author = '';
+      let videoId = '';
+      let isPlaying = false;
+      let duration = 0;
+      let currentTime = 0;
+
+      if (player && typeof player.getVideoData === 'function') {
+        const data = player.getVideoData() || {};
+        title = data.title || '';
+        author = data.author || '';
+        videoId = data.video_id || '';
+      }
+
+      if (!title) {
+        const titleEl = document.querySelector('.ytp-title-link, .ytp-title, .title');
+        if (titleEl && titleEl.textContent) title = titleEl.textContent.trim();
+      }
+
+      if (video) {
+        isPlaying = !video.paused && !video.ended && video.readyState > 2;
+        duration = Number.isFinite(video.duration) ? video.duration : 0;
+        currentTime = Number.isFinite(video.currentTime) ? video.currentTime : 0;
+      }
+
+      // Update navigator.mediaSession
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+
+        if (title && (title !== lastMediaState.title || author !== lastMediaState.author || videoId !== lastMediaState.videoId)) {
+          const artwork = videoId ? [
+            { src: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`, sizes: '480x360', type: 'image/jpeg' }
+          ] : [];
+
+          try {
+            navigator.mediaSession.metadata = new MediaMetadata({
+              title,
+              artist: author || 'YouTube TV',
+              album: 'TizenTube',
+              artwork
+            });
+          } catch (e) {}
+        }
+      }
+
+      // If state changed or during playback progress, send IPC to main process
+      const stateChanged = (
+        title !== lastMediaState.title ||
+        author !== lastMediaState.author ||
+        videoId !== lastMediaState.videoId ||
+        isPlaying !== lastMediaState.isPlaying
+      );
+
+      if (stateChanged || (isPlaying && Math.abs(currentTime - (lastMediaState.currentTime || 0)) > 5)) {
+        lastMediaState = { title, author, videoId, isPlaying, duration, currentTime };
+        ipcRenderer.send('media-status-update', {
+          title,
+          author,
+          videoId,
+          isPlaying,
+          duration,
+          currentTime
+        });
+      }
+    } catch (err) {
+      // Quietly ignore DOM inspection errors
+    }
+  }
+
+  setInterval(updateMediaStatus, 1000);
+
+  // External media control actions from tray or main
+  ipcRenderer.on('media-control-action', (event, action) => {
+    const v = getVideo();
+    const p = getPlayer();
+    if (action === 'toggle-play') {
+      if (v) {
+        if (v.paused) v.play(); else v.pause();
+      } else if (p) {
+        if (p.getPlayerState && p.getPlayerState() === 1) p.pauseVideo();
+        else if (p.playVideo) p.playVideo();
+      }
+    } else if (action === 'next') {
+      if (p && p.nextVideo) p.nextVideo();
+    } else if (action === 'previous') {
+      if (p && p.previousVideo) p.previousVideo();
+    }
+  });
+
+  // Sleep timer HUD alerts
+  ipcRenderer.on('sleep-timer-warning', (event, secondsRemaining) => {
+    if (window.TizenTubeAudioManager && typeof window.TizenTubeAudioManager.showToast === 'function') {
+      window.TizenTubeAudioManager.showToast(`⏰ Sleep timer: closing in ${secondsRemaining}s (press any key to cancel)`);
+    }
+  });
+
+  ipcRenderer.on('sleep-timer-cancelled', () => {
+    if (window.TizenTubeAudioManager && typeof window.TizenTubeAudioManager.showToast === 'function') {
+      window.TizenTubeAudioManager.showToast('⏰ Sleep timer cancelled');
+    }
+  });
+
+  // User input activity cancels sleep timer if warning is showing
+  window.addEventListener('keydown', () => {
+    ipcRenderer.send('user-activity-ping');
+  }, { passive: true });
+}
+
 // Bootstrap lifecycle
 (async function init() {
   console.log('[TizenTube Preload] Initializing TizenTube Windows environment...');
@@ -136,7 +325,15 @@ async function injectTizenTubeScript() {
     console.error('[TizenTube Preload] Failed to load audio.js:', err);
   }
 
-  // 4. Load In-App Settings Overlay directly via Node require
+  // 4. Initialize MediaSession & SMTC integration
+  try {
+    initMediaSessionIntegration();
+    console.log('[TizenTube Preload] MediaSession SMTC integration initialized.');
+  } catch (err) {
+    console.error('[TizenTube Preload] Failed to initialize MediaSession:', err);
+  }
+
+  // 5. Load In-App Settings Overlay directly via Node require
   function initOverlay() {
     try {
       require('../renderer/overlay.js');
@@ -152,7 +349,7 @@ async function injectTizenTubeScript() {
     window.addEventListener('DOMContentLoaded', initOverlay, { once: true });
   }
 
-  // 4. Inject TizenTube userscript once DOM is ready
+  // 6. Inject TizenTube userscript once DOM is ready
   if (!config || config.tizentube.injectScript !== false) {
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', injectTizenTubeScript, { once: true });

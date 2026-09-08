@@ -48,14 +48,23 @@ npm start
 
 The D-pad and stick both navigate, with a configurable repeat rate. Everything
 except the D-pad can be remapped in `config.json` (including `VolumeUp`, `VolumeDown`,
-and `VolumeMute`).
+`VolumeMute`, and `TogglePiP`).
 
-Keyboard works too: arrows, Enter, Esc, Space, `F11` fullscreen, `F2` overlay, `F5` reload,
+Keyboard works too: arrows, Enter, Esc, Space, `F11` fullscreen, `Ctrl+Shift+P` (or `Alt+P`) Mini-Player (PiP), `F2` overlay, `F5` reload,
 and volume controls (`Ctrl+Up` / `Ctrl+Down`, `Ctrl+M` mute, and media keys).
+
+### Windows & HTPC Integration
+
+- **Windows System Media Transport Controls (SMTC)**: Automatically reports currently playing video title, channel name, and thumbnail artwork to Windows 10/11 lock screens, volume flyouts, and taskbars. Hardware media keys (Play, Pause, Next, Prev, Seek) control playback seamlessly.
+- **Discord Rich Presence**: Displays what video and channel you are watching, playback status, and elapsed/remaining time on your Discord profile (configurable toggle and client ID in settings).
+- **Mini-Player (Picture-in-Picture)**: Toggle into a compact borderless floating player that stays on top of all applications and games (`Ctrl+Shift+P` or via settings overlay).
+- **System Tray & Background Audio**: Minimizing hides the window to the system tray while audio continues uninterrupted. Left-click or double-click to restore, or use the tray context menu for quick media controls.
+- **Multi-Monitor Position Memory**: Automatically remembers and restores window dimensions and placement on secondary monitors or TVs across restarts.
+- **Sleep Timer & Display Sleep Blocker**: In-app sleep timer (15m to 120m) with an on-screen warning before auto-closing. Keeps screens awake during active playback.
 
 The settings overlay (Start, or `F2`) has a live controller tester — useful for
 checking a pad is seen at all, and for tuning stick deadzone without guessing.
-It's navigable with the pad: D-pad to move, left/right to adjust sliders, A to
+It's navigable with the pad: D-pad to move, left/right to adjust sliders and dropdowns, A to
 flip a toggle or press a button.
 
 ## Signing in
@@ -103,7 +112,10 @@ reachable from the overlay; the rest is worth editing by hand:
 - `controller.bindings` — per-button actions
 - `controller.vibration` — rumble on button presses and navigation
 - `display.autoHideCursor`, `display.preventDisplaySleep`
+- `display.windowBounds` — saved coordinates and dimensions across multi-monitor setups
 - `audio.volume`, `audio.muted` — playback volume level (`0.0`–`1.0`) and mute state
+- `discord.enabled`, `discord.clientId` — Discord Rich Presence toggle and app ID
+- `system.minimizeToTray` — hide to taskbar tray when minimized
 - `updates.autoCheck` — look for a newer app version on startup
 - `system.userAgentProfile` — see above
 
