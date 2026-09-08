@@ -731,6 +731,21 @@ function createWindow() {
     mainWindow = null;
   });
 
+  // Handle mouse side buttons (Back / Forward) and multimedia app commands
+  mainWindow.on('app-command', (event, cmd) => {
+    if (cmd === 'browser-backward') {
+      event.preventDefault();
+      if (mainWindow && mainWindow.webContents) {
+        mainWindow.webContents.send('tizentube-mouse-back');
+      }
+    } else if (cmd === 'browser-forward') {
+      event.preventDefault();
+      if (mainWindow && mainWindow.webContents) {
+        mainWindow.webContents.send('tizentube-mouse-forward');
+      }
+    }
+  });
+
   // Keep the persisted setting and the renderer's copy in step with the real
   // window state, however the state was changed.
   mainWindow.on('enter-full-screen', () => setFullscreenState(true));

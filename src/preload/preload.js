@@ -325,7 +325,18 @@ function initMediaSessionIntegration() {
     console.error('[TizenTube Preload] Failed to load audio.js:', err);
   }
 
-  // 4. Initialize MediaSession & SMTC integration
+  // 4. Load Mouse & Pointer Navigation Subsystem directly via Node require
+  try {
+    require('../renderer/mouse.js');
+    if (window.TizenTubeMouseManager) {
+      window.TizenTubeMouseManager.init(config || {});
+    }
+    console.log('[TizenTube Preload] Mouse subsystem loaded successfully.');
+  } catch (err) {
+    console.error('[TizenTube Preload] Failed to load mouse.js:', err);
+  }
+
+  // 5. Initialize MediaSession & SMTC integration
   try {
     initMediaSessionIntegration();
     console.log('[TizenTube Preload] MediaSession SMTC integration initialized.');

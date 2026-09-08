@@ -432,6 +432,7 @@
     { id: 'tt-btn-pip', type: 'button' },
     { id: 'tt-select-sleeptimer', type: 'select' },
     { id: 'tt-toggle-remote', type: 'checkbox' },
+    { id: 'tt-toggle-mouse', type: 'checkbox' },
     { id: 'tt-toggle-fullscreen', type: 'checkbox' },
     { id: 'tt-toggle-autohide', type: 'checkbox' },
     { id: 'tt-toggle-sleep', type: 'checkbox' },
@@ -754,7 +755,22 @@
                 <div style="font-size: 13px; color: var(--tt-text-2);">Connect on your phone (same Wi-Fi):</div>
                 <div id="tt-remote-url" style="font-size: 16px; font-weight: 700; color: var(--tt-accent); font-family: monospace; user-select: text;">Loading...</div>
                 <div style="font-size: 12px; color: var(--tt-text-3);">Supports phone keyboard typing, voice dictation, and pasting YouTube links to play immediately on TV.</div>
+            </div>
+          </div>
+
+          <!-- Section 6: Mouse & Pointer Controls -->
+          <div class="tt-section">
+            <div class="tt-section-title">Mouse & Pointer Controls</div>
+
+            <div class="tt-control-row">
+              <div>
+                <div class="tt-label">On-Screen Mouse Controls</div>
+                <div class="tt-sublabel">Show video back button, volume slider bar, and carousel scroll buttons when using a mouse.</div>
               </div>
+              <label class="tt-switch">
+                <input type="checkbox" id="tt-toggle-mouse">
+                <span class="tt-switch-slider"></span>
+              </label>
             </div>
           </div>
 
@@ -841,9 +857,11 @@
       const discord = this.config.discord || {};
       const system = this.config.system || {};
       const remote = this.config.remote || {};
+      const mouse = this.config.mouse || {};
       this.setChecked('tt-toggle-discord', discord.enabled !== false);
       this.setChecked('tt-toggle-tray', system.minimizeToTray !== false);
       this.setChecked('tt-toggle-remote', remote.enabled !== false);
+      this.setChecked('tt-toggle-mouse', mouse.enabled !== false && mouse.onScreenControls !== false);
 
       ipcRenderer.invoke('get-remote-info').then((info) => {
         this.updateRemoteUI(info);
@@ -999,6 +1017,17 @@
         this.config.remote.enabled = e.target.checked;
         const res = await ipcRenderer.invoke('toggle-remote-server', e.target.checked);
         this.updateRemoteUI(res);
+      });
+
+      this.on('tt-toggle-mouse', 'change', (e) => {
+        if (!this.config) return;
+        this.config.mouse = this.config.mouse || {};
+        this.config.mouse.enabled = e.target.checked;
+        this.config.mouse.onScreenControls = e.target.checked;
+        const mouseUI = document.getElementById('tt-mouse-ui');
+        if (mouseUI) {
+          mouseUI.style.display = e.target.checked ? '' : 'none';
+        }
       });
 
       window.addEventListener('tizentube-battery-status', (e) => {

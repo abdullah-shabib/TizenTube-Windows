@@ -82,6 +82,11 @@ const DEFAULT_CONFIG = {
   features: {
     sleepTimerMinutes: 0
   },
+  mouse: {
+    enabled: true,
+    onScreenControls: true,
+    autoHideDelayMs: 2500
+  },
   updates: {
     // Checks this project's GitHub releases on startup. Only meaningful for
     // the installed build: a portable exe cannot replace itself, and a dev

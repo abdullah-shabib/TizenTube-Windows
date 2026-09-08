@@ -71,6 +71,14 @@ Speed controls: `[` / `]` to adjust playback speed, `Shift+{` to reset to 1.0x, 
 - **Controller Battery Indicator**: Monitors battery level via Windows XInput and Web Gamepad API. Shows a subtle on-screen warning toast when battery drops below 20% and displays live battery status in the Settings Overlay.
 - **Mobile Typing Companion & Remote**: Built-in zero-dependency local network server (`http://<LAN_IP>:8989`). Scan the QR code in Settings with your phone to type search queries with your phone keyboard, use voice dictation, send video links, and use a responsive mobile remote. Also supports `Ctrl+V` clipboard paste directly into TV search.
 
+### Mouse & Pointer Navigation
+
+- **On-Screen Back Button**: When playing/inside a video, a floating `← Back` button appears in the top-left corner on mouse move to cleanly exit playback and return to the browse feed.
+- **Volume Button & Slider**: A speaker button in the top-right corner expands an interactive volume slider with percentage readout and mute toggle.
+- **Carousel Navigation Chevrons**: Floating `❮` and `❯` buttons centered on the left and right screen edges allow scrolling through video cards with continuous hold repeat.
+- **Auto-Hiding**: All on-screen mouse buttons automatically fade in when moving the mouse and smoothly auto-hide after 2.5 seconds of inactivity.
+- **Hardware Mouse Shortcuts**: Mouse side back button (Button 4 / XButton1) navigates back; mouse wheel scrolls cards in browse view and adjusts volume while holding `Ctrl`.
+
 The settings overlay (Start, or `F2`) has a live controller tester — useful for
 checking a pad is seen at all, and for tuning stick deadzone without guessing.
 It's navigable with the pad: D-pad to move, left/right to adjust sliders and dropdowns, A to
@@ -123,6 +131,7 @@ reachable from the overlay; the rest is worth editing by hand:
 - `display.autoHideCursor`, `display.preventDisplaySleep`
 - `display.windowBounds` — saved coordinates and dimensions across multi-monitor setups
 - `audio.volume`, `audio.muted` — playback volume level (`0.0`–`1.0`) and mute state
+- `mouse.enabled`, `mouse.onScreenControls` — on-screen mouse buttons and navigation toggle
 - `discord.enabled`, `discord.clientId` — Discord Rich Presence toggle and app ID
 - `system.minimizeToTray` — hide to taskbar tray when minimized
 - `updates.autoCheck` — look for a newer app version on startup

@@ -43,6 +43,7 @@ const SOURCES = [
   'src/renderer/controller.js',
   'src/renderer/overlay.js',
   'src/renderer/audio.js',
+  'src/renderer/mouse.js',
   'src/renderer/theme.js',
   'scripts/pin-script.js',
   'scripts/verify-pin.js'
