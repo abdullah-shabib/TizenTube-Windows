@@ -55,7 +55,8 @@ and volume controls (`Ctrl+Up` / `Ctrl+Down`, `Ctrl+M` mute, and media keys).
 
 The settings overlay (Start, or `F2`) has a live controller tester — useful for
 checking a pad is seen at all, and for tuning stick deadzone without guessing.
-It's navigable with the pad: D-pad to move, left/right to adjust, A to activate.
+It's navigable with the pad: D-pad to move, left/right to adjust sliders, A to
+flip a toggle or press a button.
 
 ## Signing in
 

@@ -664,7 +664,7 @@
                 <button class="tt-action-btn primary" id="tt-btn-save">Save & Close</button>
               </div>
             </div>
-            <div class="tt-hint">D-Pad / Stick to move &middot; Left & Right to adjust &middot; A to activate &middot; B or Start to close</div>
+            <div class="tt-hint">D-Pad / Stick to move &middot; Left & Right to adjust sliders &middot; A to toggle or activate &middot; B or Start to close</div>
           </div>
         </div>
       `);
@@ -1064,20 +1064,20 @@
         case 'ArrowDown':
           this.setFocus(this.focusIndex + 1);
           break;
+        // Left/Right only moves sliders. Toggles are deliberately excluded:
+        // the stick rarely returns to centre cleanly, so brushing sideways
+        // while moving down the list would silently flip settings. A is the
+        // only way to change a toggle.
         case 'ArrowLeft':
         case 'ArrowRight': {
+          if (entry.type !== 'range') break;
           const forward = action === 'ArrowRight';
-          if (entry.type === 'range') {
-            const step = parseFloat(entry.el.step) || 1;
-            const next = parseFloat(entry.el.value) + (forward ? step : -step);
-            const min = parseFloat(entry.el.min);
-            const max = parseFloat(entry.el.max);
-            entry.el.value = Math.min(max, Math.max(min, next));
-            entry.el.dispatchEvent(new Event('input', { bubbles: true }));
-          } else if (entry.type === 'checkbox') {
-            entry.el.checked = forward;
-            entry.el.dispatchEvent(new Event('change', { bubbles: true }));
-          }
+          const step = parseFloat(entry.el.step) || 1;
+          const next = parseFloat(entry.el.value) + (forward ? step : -step);
+          const min = parseFloat(entry.el.min);
+          const max = parseFloat(entry.el.max);
+          entry.el.value = Math.min(max, Math.max(min, next));
+          entry.el.dispatchEvent(new Event('input', { bubbles: true }));
           break;
         }
         case 'Enter':
