@@ -44,6 +44,11 @@
     test:    { duration: 80,  magnitude: 0.22 }
   };
 
+  // Actions that should keep firing while a button is held, matching how the
+  // sticks and D-Pad already behave. Without this, holding a trigger bound to
+  // VolumeUp gives a single 5% step.
+  const REPEATABLE_ACTIONS = new Set(['VolumeUp', 'VolumeDown']);
+
   // Buttons 12-15 are the D-Pad and are handled by the direction/repeat logic.
   const DPAD_FIRST = 12;
   const DPAD_LAST = 15;
@@ -63,8 +68,11 @@
       button3: { action: 'Search' },
       button4: { action: 'SeekLeft' },
       button5: { action: 'SeekRight' },
+      button6: { action: 'VolumeDown' },
+      button7: { action: 'VolumeUp' },
       button8: { action: 'ToggleFullscreen' },
-      button9: { action: 'ToggleOverlay' }
+      button9: { action: 'ToggleOverlay' },
+      button11: { action: 'VolumeMute' }
     }
   };
 
@@ -92,6 +100,10 @@
         down:  { isPressed: false, firstPressedTime: 0, lastRepeatTime: 0 },
         left:  { isPressed: false, firstPressedTime: 0, lastRepeatTime: 0 },
         right: { isPressed: false, firstPressedTime: 0, lastRepeatTime: 0 }
+      };
+      this.rightStickStates = {
+        up:    { isPressed: false, firstPressedTime: 0, lastRepeatTime: 0 },
+        down:  { isPressed: false, firstPressedTime: 0, lastRepeatTime: 0 }
       };
 
       this.nativeHapticsAvailable = true;
@@ -231,6 +243,27 @@
         return;
       }
 
+      if (action === 'VolumeUp') {
+        window.dispatchEvent(new CustomEvent('tizentube-volume-change', { detail: { delta: 0.05 } }));
+        return;
+      }
+
+      if (action === 'VolumeDown') {
+        window.dispatchEvent(new CustomEvent('tizentube-volume-change', { detail: { delta: -0.05 } }));
+        return;
+      }
+
+      if (action === 'VolumeMute') {
+        window.dispatchEvent(new CustomEvent('tizentube-volume-toggle-mute'));
+        return;
+      }
+
+      // Back also clears the startup banner if it is showing; the overlay
+      // ignores this when no banner is up.
+      if (action === 'Escape') {
+        window.dispatchEvent(new CustomEvent('tizentube-dismiss-prompt'));
+      }
+
       // While the overlay is open the controller drives the overlay instead of
       // the YouTube page underneath it.
       if (this.overlayOpen) {
@@ -299,6 +332,30 @@
       }
     }
 
+    handleRightStick(dirName, isPressed, now) {
+      const state = this.rightStickStates[dirName];
+      const controller = (this.config && this.config.controller) || {};
+      const initialDelay = controller.initialDelayMs || 250;
+      const repeatInterval = controller.repeatIntervalMs || 110;
+      const actionName = dirName === 'up' ? 'VolumeUp' : 'VolumeDown';
+
+      if (isPressed) {
+        if (!state.isPressed) {
+          state.isPressed = true;
+          state.firstPressedTime = now;
+          state.lastRepeatTime = now;
+          this.triggerHaptic('stick', this.activeGamepadIndex || 0);
+          this.executeAction(actionName);
+        } else if (now - state.firstPressedTime >= initialDelay &&
+                   now - state.lastRepeatTime >= repeatInterval) {
+          state.lastRepeatTime = now;
+          this.executeAction(actionName);
+        }
+      } else {
+        state.isPressed = false;
+      }
+    }
+
     findGamepad() {
       const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
 
@@ -341,6 +398,8 @@
         if (gamepad && controller && controller.enabled !== false) {
           const now = Date.now();
           const deadzone = controller.deadzone || 0.25;
+          const initialDelay = controller.initialDelayMs || 250;
+          const repeatInterval = controller.repeatIntervalMs || 110;
 
           // 1. Left stick (axes 0 & 1)
           const axisX = gamepad.axes[0] || 0;
@@ -362,7 +421,15 @@
           this.handleDirection('left',  stickLeft || dpadLeft,   now);
           this.handleDirection('right', stickRight || dpadRight, now);
 
-          // 3. Configurable buttons (the D-Pad is handled above)
+          // 3. Right stick (axis 3) - Volume Control
+          const rightAxisY = gamepad.axes[3] || 0;
+          const rightStickUp   = rightAxisY < -deadzone;
+          const rightStickDown = rightAxisY > deadzone;
+
+          this.handleRightStick('up',   rightStickUp,   now);
+          this.handleRightStick('down', rightStickDown, now);
+
+          // 4. Configurable buttons (the D-Pad is handled above)
           const bindings = controller.bindings || {};
           for (let bIdx = 0; bIdx < gamepad.buttons.length; bIdx++) {
             if (bIdx >= DPAD_FIRST && bIdx <= DPAD_LAST) continue;
@@ -372,19 +439,28 @@
 
             let bState = this.buttonStates.get(bIdx);
             if (!bState) {
-              bState = { isPressed: false };
+              bState = { isPressed: false, firstPressedTime: 0, lastRepeatTime: 0 };
               this.buttonStates.set(bIdx, bState);
             }
+
+            const action = binding && binding.action;
 
             if (isPressed) {
               if (!bState.isPressed) {
                 bState.isPressed = true;
+                bState.firstPressedTime = now;
+                bState.lastRepeatTime = now;
                 // Only for a button that does something: rumbling an unbound
                 // trigger or stick-click promises an action that never happens.
-                if (binding && binding.action) {
+                if (action) {
                   this.triggerHaptic('button', gamepad.index);
-                  this.executeAction(binding.action);
+                  this.executeAction(action);
                 }
+              } else if (action && REPEATABLE_ACTIONS.has(action) &&
+                         now - bState.firstPressedTime >= initialDelay &&
+                         now - bState.lastRepeatTime >= repeatInterval) {
+                bState.lastRepeatTime = now;
+                this.executeAction(action);
               }
             } else {
               bState.isPressed = false;

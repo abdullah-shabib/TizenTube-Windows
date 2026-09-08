@@ -24,12 +24,14 @@ const nativeVibration = new NativeVibrationManager();
 
 // Disable Blink features that block userscripts and dynamic code
 app.commandLine.appendSwitch('disable-blink-features', 'TrustedTypes,TrustedTypesEnforcement');
-app.commandLine.appendSwitch('disable-features', 'TrustedTypes');
+app.commandLine.appendSwitch('disable-features', 'TrustedTypes,CalculateNativeWinOcclusion');
 
 // Optimal TV video playback and input performance switches
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('disable-background-timer-throttling');
+app.commandLine.appendSwitch('disable-background-media-suspend');
 // VaapiVideoDecoder is Linux-only and does nothing here; on Windows the VP9/AV1
 // hardware path is D3D11, which is already on by default.
 app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport,CanvasOopRasterization');
@@ -267,6 +269,7 @@ function createWindow() {
     icon: path.join(__dirname, '..', '..', 'assets', 'icon.ico'),
     width: 1920,
     height: 1080,
+    center: true,
     fullscreen: config.display.fullscreen,
     autoHideMenuBar: true,
     backgroundColor: '#0f0f0f',
@@ -282,6 +285,9 @@ function createWindow() {
   });
 
   Menu.setApplicationMenu(null);
+
+  mainWindow.show();
+  mainWindow.focus();
 
   // The renderer runs with Node integration and no web security, so nothing
   // may open a second window onto an arbitrary site with those privileges.
@@ -302,7 +308,7 @@ function createWindow() {
   mainWindow.on('enter-full-screen', () => setFullscreenState(true));
   mainWindow.on('leave-full-screen', () => setFullscreenState(false));
 
-  // Handle F11 fullscreen toggle, F2 overlay toggle, and F5 reload
+  // Handle F11 fullscreen toggle, F2 overlay toggle, F5 reload, and volume shortcuts
   mainWindow.webContents.on('before-input-event', (event, input) => {
     if (input.type === 'keyDown') {
       if (input.key === 'F11') {
@@ -314,6 +320,24 @@ function createWindow() {
       } else if (input.key === 'F5') {
         event.preventDefault();
         mainWindow.webContents.reload();
+      } else if (input.key === 'AudioVolumeUp' || input.key === 'VolumeUp') {
+        event.preventDefault();
+        mainWindow.webContents.send('volume-adjust', 0.05);
+      } else if (input.key === 'AudioVolumeDown' || input.key === 'VolumeDown') {
+        event.preventDefault();
+        mainWindow.webContents.send('volume-adjust', -0.05);
+      } else if (input.key === 'AudioVolumeMute' || input.key === 'VolumeMute') {
+        event.preventDefault();
+        mainWindow.webContents.send('volume-toggle-mute');
+      } else if (input.control && input.key === 'ArrowUp') {
+        event.preventDefault();
+        mainWindow.webContents.send('volume-adjust', 0.05);
+      } else if (input.control && input.key === 'ArrowDown') {
+        event.preventDefault();
+        mainWindow.webContents.send('volume-adjust', -0.05);
+      } else if (input.control && (input.key === 'm' || input.key === 'M')) {
+        event.preventDefault();
+        mainWindow.webContents.send('volume-toggle-mute');
       }
     }
   });
@@ -359,6 +383,21 @@ ipcMain.handle('save-config', (event, newConfig) => {
     }
   }
   return updated;
+});
+
+// The payload is defaulted so a bare invoke cannot throw on destructuring, and
+// the level is checked with Number.isFinite: typeof NaN is 'number', and
+// Math.min/Math.max would carry it straight into the config.
+ipcMain.handle('set-audio-settings', (event, payload = {}) => {
+  const { volume, muted } = payload || {};
+  const cfg = configManager.get();
+  cfg.audio = cfg.audio || {};
+  if (Number.isFinite(volume)) {
+    cfg.audio.volume = Math.max(0, Math.min(1, volume));
+  }
+  if (typeof muted === 'boolean') cfg.audio.muted = muted;
+  configManager.set(cfg);
+  return cfg.audio;
 });
 
 ipcMain.handle('get-tizentube-script', () => {

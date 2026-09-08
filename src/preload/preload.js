@@ -37,6 +37,53 @@ if (typeof window !== 'undefined') {
   }
 }
 
+// Prevent YouTube TV from pausing playback when the window blurs or is hidden
+(function preventBackgroundPause() {
+  if (typeof window === 'undefined') return;
+
+  try {
+    // 1. Spoof visibility properties on Document prototype and document instance
+    const docProto = Document.prototype;
+    const visibilityProps = {
+      visibilityState: { get: () => 'visible', configurable: true },
+      hidden: { get: () => false, configurable: true },
+      webkitVisibilityState: { get: () => 'visible', configurable: true },
+      webkitHidden: { get: () => false, configurable: true },
+      hasFocus: { value: () => true, writable: true, configurable: true }
+    };
+
+    for (const [prop, desc] of Object.entries(visibilityProps)) {
+      try { Object.defineProperty(docProto, prop, desc); } catch (e) {}
+      try { Object.defineProperty(document, prop, desc); } catch (e) {}
+    }
+
+    // 2. Swallow the page-lifecycle events YouTube pauses on, in the capture
+    // phase so its own listeners never run.
+    //
+    // Deliberately NOT blocked: focusout, and blur on anything but window.
+    // Those drive focus movement inside the Leanback UI, and killing them with
+    // stopImmediatePropagation breaks D-pad navigation and form fields. Only
+    // whole-window blur is suppressed, which is what pauses playback.
+    const blockHandler = (e) => {
+      e.stopImmediatePropagation();
+      e.stopPropagation();
+    };
+
+    for (const evt of ['visibilitychange', 'webkitvisibilitychange', 'pagehide']) {
+      window.addEventListener(evt, blockHandler, true);
+      document.addEventListener(evt, blockHandler, true);
+    }
+
+    // window.blur only - a blur event whose target is the window means the app
+    // lost focus, not that focus moved between elements in the page.
+    window.addEventListener('blur', (e) => {
+      if (e.target === window || e.target === document) blockHandler(e);
+    }, true);
+  } catch (err) {
+    console.error('[TizenTube Preload] Failed to configure background playback protection:', err);
+  }
+})();
+
 // Inject the active TizenTube userscript into the webpage's DOM
 async function injectTizenTubeScript() {
   try {
@@ -78,7 +125,18 @@ async function injectTizenTubeScript() {
     console.error('[TizenTube Preload] Failed to load controller.js:', err);
   }
 
-  // 3. Load In-App Settings Overlay directly via Node require
+  // 3. Load Audio Subsystem directly via Node require
+  try {
+    require('../renderer/audio.js');
+    if (window.TizenTubeAudioManager) {
+      window.TizenTubeAudioManager.init(config || {});
+    }
+    console.log('[TizenTube Preload] Audio subsystem loaded successfully.');
+  } catch (err) {
+    console.error('[TizenTube Preload] Failed to load audio.js:', err);
+  }
+
+  // 4. Load In-App Settings Overlay directly via Node require
   function initOverlay() {
     try {
       require('../renderer/overlay.js');

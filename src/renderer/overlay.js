@@ -319,6 +319,80 @@
       text-align: center;
       padding-top: 4px;
     }
+
+    /* Fullscreen startup prompt */
+    #tt-fullscreen-prompt {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-12px);
+      z-index: 2147483645;
+      background: rgba(18, 18, 18, 0.94);
+      border: 1px solid #3ea6ff;
+      border-radius: 30px;
+      padding: 8px 18px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.8), 0 0 14px rgba(62, 166, 255, 0.35);
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: #FFFFFF;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      user-select: none;
+    }
+
+    #tt-fullscreen-prompt.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+    }
+
+    .tt-fs-icon {
+      font-size: 16px;
+      color: #3ea6ff;
+      line-height: 1;
+    }
+
+    .tt-fs-text {
+      font-size: 13px;
+      color: #e0e0e0;
+    }
+    .tt-fs-text strong {
+      color: #3ea6ff;
+      font-weight: 600;
+    }
+
+    .tt-fs-btn {
+      background: #3ea6ff;
+      color: #000000;
+      border: none;
+      border-radius: 14px;
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .tt-fs-btn:hover {
+      background: #65b8ff;
+    }
+
+    .tt-fs-close {
+      background: transparent;
+      border: none;
+      color: #888888;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+      transition: color 0.15s;
+    }
+    .tt-fs-close:hover {
+      color: #ffffff;
+    }
   `;
 
   // Pixels the visualiser dot moves from centre at full stick deflection.
@@ -331,6 +405,8 @@
 
   // Controls the D-Pad walks through, in visual order.
   const FOCUS_ORDER = [
+    { id: 'tt-input-volume', type: 'range' },
+    { id: 'tt-toggle-mute', type: 'checkbox' },
     { id: 'tt-input-deadzone', type: 'range' },
     { id: 'tt-input-repeat', type: 'range' },
     { id: 'tt-toggle-vibration', type: 'checkbox' },
@@ -351,6 +427,8 @@
       this.buttonPills = new Map();
       this.focusables = [];
       this.focusIndex = 0;
+      this.fsPromptEl = null;
+      this.fsPromptTimer = null;
       this.init();
     }
 
@@ -431,8 +509,12 @@
                 <div class="tt-btn-pill" data-btn="3">Y / Triangle</div>
                 <div class="tt-btn-pill" data-btn="4">LB</div>
                 <div class="tt-btn-pill" data-btn="5">RB</div>
+                <div class="tt-btn-pill" data-btn="6">LT</div>
+                <div class="tt-btn-pill" data-btn="7">RT</div>
                 <div class="tt-btn-pill" data-btn="8">View / Back</div>
                 <div class="tt-btn-pill" data-btn="9">Start / Menu</div>
+                <div class="tt-btn-pill" data-btn="10">L3</div>
+                <div class="tt-btn-pill" data-btn="11">R3</div>
                 <div class="tt-btn-pill" data-btn="12">D-Up</div>
                 <div class="tt-btn-pill" data-btn="13">D-Down</div>
                 <div class="tt-btn-pill" data-btn="14">D-Left</div>
@@ -479,7 +561,34 @@
             </div>
           </div>
 
-          <!-- Section 3: Display & Features -->
+          <!-- Section 3: Audio Settings -->
+          <div class="tt-section">
+            <div class="tt-section-title">Audio</div>
+
+            <div class="tt-control-row">
+              <div>
+                <div class="tt-label">Application Volume</div>
+                <div class="tt-sublabel">Adjust playback volume of TizenTube.</div>
+              </div>
+              <div class="tt-slider-group">
+                <input type="range" id="tt-input-volume" min="0" max="100" step="5" value="100">
+                <span class="tt-value-display" id="tt-val-volume">100%</span>
+              </div>
+            </div>
+
+            <div class="tt-control-row">
+              <div>
+                <div class="tt-label">Mute Audio</div>
+                <div class="tt-sublabel">Mute all sound output from the application.</div>
+              </div>
+              <label class="tt-switch">
+                <input type="checkbox" id="tt-toggle-mute">
+                <span class="tt-switch-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Section 4: Display & Features -->
           <div class="tt-section">
             <div class="tt-section-title">Display & Application</div>
 
@@ -554,6 +663,7 @@
 
       this.applyViewportScale();
       window.addEventListener('resize', () => this.applyViewportScale());
+      this.createFullscreenPrompt();
     }
 
     setValue(id, value) {
@@ -579,6 +689,17 @@
 
       const dz = controller.deadzone || 0.25;
       const rp = controller.repeatIntervalMs || 110;
+      const audio = this.config.audio || {};
+      // Number.isFinite, not typeof: NaN is a 'number' and would render "NaN%"
+      // and leave the slider with no valid position.
+      const vol = Number.isFinite(audio.volume)
+        ? Math.max(0, Math.min(100, Math.round(audio.volume * 100)))
+        : 100;
+      const muted = !!audio.muted;
+
+      this.setValue('tt-input-volume', vol);
+      this.setText('tt-val-volume', vol + '%');
+      this.setChecked('tt-toggle-mute', muted);
 
       this.setValue('tt-input-deadzone', dz);
       this.setText('tt-val-deadzone', dz.toFixed(2));
@@ -592,6 +713,15 @@
       this.setChecked('tt-toggle-autohide', display.autoHideCursor);
       this.setChecked('tt-toggle-sleep', display.preventDisplaySleep);
       this.setChecked('tt-toggle-autoupdate', tizentube.autoUpdateScript);
+
+      // If started in windowed mode, show startup prompt
+      if (!display.fullscreen) {
+        setTimeout(() => {
+          if (this.config && !this.config.display.fullscreen) {
+            this.showFullscreenPrompt(8000);
+          }
+        }, 800);
+      }
     }
 
     // The dot travels STICK_TRAVEL_PX from the centre at full deflection, so a
@@ -618,6 +748,17 @@
 
     setupListeners() {
       // Sliders
+      this.on('tt-input-volume', 'input', (e) => {
+        const val = parseInt(e.target.value, 10);
+        this.setText('tt-val-volume', val + '%');
+        if (!this.config) return;
+        this.config.audio = this.config.audio || {};
+        this.config.audio.volume = val / 100;
+        if (window.TizenTubeAudioManager) {
+          window.TizenTubeAudioManager.setVolume(val / 100, true, false);
+        }
+      });
+
       this.on('tt-input-deadzone', 'input', (e) => {
         const val = parseFloat(e.target.value);
         this.setText('tt-val-deadzone', val.toFixed(2));
@@ -645,6 +786,14 @@
           window.TizenTubeGamepadManager.triggerHaptic('test', 0);
         }
       });
+      this.on('tt-toggle-mute', 'change', (e) => {
+        if (!this.config) return;
+        this.config.audio = this.config.audio || {};
+        this.config.audio.muted = e.target.checked;
+        if (window.TizenTubeAudioManager) {
+          window.TizenTubeAudioManager.setMuted(e.target.checked, true, false);
+        }
+      });
       this.on('tt-toggle-fullscreen', 'change', (e) => {
         if (this.config) this.config.display.fullscreen = e.target.checked;
       });
@@ -668,6 +817,10 @@
           try {
             this.config = await ipcRenderer.invoke('save-config', this.config);
             this.pushConfigToController();
+            if (window.TizenTubeAudioManager && this.config.audio) {
+              window.TizenTubeAudioManager.setVolume(this.config.audio.volume, false, false);
+              window.TizenTubeAudioManager.setMuted(this.config.audio.muted, false, false);
+            }
           } catch (err) {
             console.error('[TizenTube Overlay] Failed to save config:', err);
           }
@@ -697,6 +850,9 @@
         if (this.config) this.config.display.fullscreen = isFullscreen;
         const el = document.getElementById('tt-toggle-fullscreen');
         if (el) el.checked = isFullscreen;
+        if (isFullscreen) {
+          this.hideFullscreenPrompt();
+        }
       });
 
       // Controller input when overlay is open
@@ -705,11 +861,31 @@
         this.handleControllerAction(e.detail ? e.detail.action : null);
       });
 
+      // The startup banner is not part of the modal, so it never receives
+      // overlay-key events. Let Back/B dismiss it rather than leaving a control
+      // on screen that only a mouse can clear.
+      window.addEventListener('tizentube-dismiss-prompt', () => this.hideFullscreenPrompt());
+
       // Hook Gamepad diagnostics to update visualizer
       if (window.TizenTubeGamepadManager) {
         window.TizenTubeGamepadManager.onStateChange((gamepad) => {
           if (!this.isVisible) return;
           this.updateVisualizer(gamepad);
+        });
+      }
+
+      // Hook Audio manager to sync volume / mute changes
+      if (window.TizenTubeAudioManager) {
+        window.TizenTubeAudioManager.onStateChange(({ volume, muted }) => {
+          const volPct = Math.round(volume * 100);
+          this.setValue('tt-input-volume', volPct);
+          this.setText('tt-val-volume', volPct + '%');
+          this.setChecked('tt-toggle-mute', muted);
+          if (this.config) {
+            this.config.audio = this.config.audio || {};
+            this.config.audio.volume = volume;
+            this.config.audio.muted = muted;
+          }
         });
       }
     }
@@ -747,9 +923,72 @@
     }
 
     applyViewportScale() {
-      if (!this.container) return;
       const scale = Math.min(3, Math.max(1, window.innerWidth / OVERLAY_DESIGN_WIDTH));
-      this.container.style.zoom = scale;
+      if (this.container) {
+        this.container.style.zoom = scale;
+      }
+      if (this.fsPromptEl) {
+        this.fsPromptEl.style.zoom = scale;
+      }
+    }
+
+    createFullscreenPrompt() {
+      if (document.getElementById('tt-fullscreen-prompt')) {
+        this.fsPromptEl = document.getElementById('tt-fullscreen-prompt');
+        return;
+      }
+
+      const prompt = document.createElement('div');
+      prompt.id = 'tt-fullscreen-prompt';
+      prompt.innerHTML = this.getSafeHTML(`
+        <span class="tt-fs-text">Press <strong>F11</strong> or <strong>Select (Back/View)</strong> for Fullscreen</span>
+        <button class="tt-fs-btn" id="tt-fs-btn-enter">Enter Fullscreen</button>
+        <button class="tt-fs-close" id="tt-fs-btn-dismiss" title="Dismiss">&times;</button>
+      `);
+      (document.body || document.documentElement).appendChild(prompt);
+      this.fsPromptEl = prompt;
+
+      const enterBtn = prompt.querySelector('#tt-fs-btn-enter');
+      if (enterBtn) {
+        enterBtn.addEventListener('click', () => {
+          ipcRenderer.invoke('toggle-fullscreen').catch(() => {});
+          this.hideFullscreenPrompt();
+        });
+      }
+
+      const closeBtn = prompt.querySelector('#tt-fs-btn-dismiss');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+          this.hideFullscreenPrompt();
+        });
+      }
+    }
+
+    showFullscreenPrompt(autoDismissMs = 8000) {
+      if (!this.fsPromptEl) {
+        this.createFullscreenPrompt();
+      }
+      if (!this.fsPromptEl) return;
+
+      if (!this.fsPromptEl.isConnected) {
+        (document.body || document.documentElement).appendChild(this.fsPromptEl);
+      }
+      this.applyViewportScale();
+      this.fsPromptEl.classList.add('visible');
+
+      clearTimeout(this.fsPromptTimer);
+      if (autoDismissMs > 0) {
+        this.fsPromptTimer = setTimeout(() => {
+          this.hideFullscreenPrompt();
+        }, autoDismissMs);
+      }
+    }
+
+    hideFullscreenPrompt() {
+      clearTimeout(this.fsPromptTimer);
+      if (this.fsPromptEl) {
+        this.fsPromptEl.classList.remove('visible');
+      }
     }
 
     // Move the controller focus ring to the given index, wrapping around.
