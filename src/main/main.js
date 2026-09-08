@@ -385,10 +385,16 @@ ipcMain.handle('save-config', (event, newConfig) => {
   return updated;
 });
 
-ipcMain.handle('set-audio-settings', (event, { volume, muted }) => {
+// The payload is defaulted so a bare invoke cannot throw on destructuring, and
+// the level is checked with Number.isFinite: typeof NaN is 'number', and
+// Math.min/Math.max would carry it straight into the config.
+ipcMain.handle('set-audio-settings', (event, payload = {}) => {
+  const { volume, muted } = payload || {};
   const cfg = configManager.get();
   cfg.audio = cfg.audio || {};
-  if (typeof volume === 'number') cfg.audio.volume = Math.max(0, Math.min(1, volume));
+  if (Number.isFinite(volume)) {
+    cfg.audio.volume = Math.max(0, Math.min(1, volume));
+  }
   if (typeof muted === 'boolean') cfg.audio.muted = muted;
   configManager.set(cfg);
   return cfg.audio;

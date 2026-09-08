@@ -99,6 +99,14 @@
     }
   }
 
+  // typeof NaN === 'number', so a plain type check lets non-finite values reach
+  // the clamp, and Math.min/Math.max propagate them. Everything that accepts a
+  // volume goes through this.
+  function toVolume(value) {
+    if (!Number.isFinite(value)) return null;
+    return Math.max(0, Math.min(1, Math.round(value * 100) / 100));
+  }
+
   const HUD_ICONS = {
     muted: '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.6 3l2.7-2.7-1.1-1.1L15.5 11l-2.7-2.7-1.1 1.1L14.4 12l-2.7 2.7 1.1 1.1 2.7-2.7 2.7 2.7 1.1-1.1L16.6 12z"/></svg>',
     low:   '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm12 3a3.5 3.5 0 0 0-2-3.2v6.4A3.5 3.5 0 0 0 15 12z"/></svg>',
@@ -118,11 +126,8 @@
 
     init(config) {
       const audioCfg = (config && config.audio) || {};
-      if (typeof audioCfg.volume === 'number') {
-        this.volume = Math.max(0, Math.min(1, audioCfg.volume));
-      } else {
-        this.volume = 1.0;
-      }
+      const stored = toVolume(audioCfg.volume);
+      this.volume = stored === null ? 1.0 : stored;
 
       this.muted = !!audioCfg.muted;
 
@@ -282,7 +287,8 @@
         if (this.applyingInternally) return;
         if (!media || (media.tagName !== 'VIDEO' && media.tagName !== 'AUDIO')) return;
 
-        const external = Math.max(0, Math.min(1, Math.round(media.volume * 100) / 100));
+        const external = toVolume(media.volume);
+        if (external === null) return;
         if (external === this.volume && media.muted === this.muted) return;
 
         this.volume = external;
@@ -311,14 +317,20 @@
       });
 
       window.addEventListener('tizentube-volume-set', (e) => {
-        if (e.detail && typeof e.detail.volume === 'number') {
+        if (e.detail && Number.isFinite(e.detail.volume)) {
           this.setVolume(e.detail.volume);
         }
       });
     }
 
     setVolume(newVolume, persist = true, showHud = true) {
-      const clamped = Math.max(0, Math.min(1, Math.round(newVolume * 100) / 100));
+      const clamped = toVolume(newVolume);
+      // A non-finite value would render as "NaN%" and break the slider, so keep
+      // the previous level instead.
+      if (clamped === null) {
+        console.warn('[TizenTube Audio] Ignoring non-finite volume:', newVolume);
+        return;
+      }
       this.volume = clamped;
 
       // If muted and volume is adjusted upwards, automatically unmute

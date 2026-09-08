@@ -690,7 +690,11 @@
       const dz = controller.deadzone || 0.25;
       const rp = controller.repeatIntervalMs || 110;
       const audio = this.config.audio || {};
-      const vol = typeof audio.volume === 'number' ? Math.round(audio.volume * 100) : 100;
+      // Number.isFinite, not typeof: NaN is a 'number' and would render "NaN%"
+      // and leave the slider with no valid position.
+      const vol = Number.isFinite(audio.volume)
+        ? Math.max(0, Math.min(100, Math.round(audio.volume * 100)))
+        : 100;
       const muted = !!audio.muted;
 
       this.setValue('tt-input-volume', vol);
