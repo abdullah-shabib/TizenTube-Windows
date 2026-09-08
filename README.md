@@ -40,6 +40,9 @@ npm start
 | X | Play/pause |
 | Y | Search |
 | LB / RB | Seek back/forward in the player |
+| Right stick up / down | Volume up / down |
+| R3 (right stick click) | Mute / unmute |
+| RT / LT | Volume up / down |
 | Start | Settings overlay |
 | Back/View | Toggle fullscreen |
 

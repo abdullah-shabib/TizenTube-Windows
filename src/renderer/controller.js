@@ -63,8 +63,11 @@
       button3: { action: 'Search' },
       button4: { action: 'SeekLeft' },
       button5: { action: 'SeekRight' },
+      button6: { action: 'VolumeDown' },
+      button7: { action: 'VolumeUp' },
       button8: { action: 'ToggleFullscreen' },
-      button9: { action: 'ToggleOverlay' }
+      button9: { action: 'ToggleOverlay' },
+      button11: { action: 'VolumeMute' }
     }
   };
 
@@ -92,6 +95,10 @@
         down:  { isPressed: false, firstPressedTime: 0, lastRepeatTime: 0 },
         left:  { isPressed: false, firstPressedTime: 0, lastRepeatTime: 0 },
         right: { isPressed: false, firstPressedTime: 0, lastRepeatTime: 0 }
+      };
+      this.rightStickStates = {
+        up:    { isPressed: false, firstPressedTime: 0, lastRepeatTime: 0 },
+        down:  { isPressed: false, firstPressedTime: 0, lastRepeatTime: 0 }
       };
 
       this.nativeHapticsAvailable = true;
@@ -314,6 +321,30 @@
       }
     }
 
+    handleRightStick(dirName, isPressed, now) {
+      const state = this.rightStickStates[dirName];
+      const controller = (this.config && this.config.controller) || {};
+      const initialDelay = controller.initialDelayMs || 250;
+      const repeatInterval = controller.repeatIntervalMs || 110;
+      const actionName = dirName === 'up' ? 'VolumeUp' : 'VolumeDown';
+
+      if (isPressed) {
+        if (!state.isPressed) {
+          state.isPressed = true;
+          state.firstPressedTime = now;
+          state.lastRepeatTime = now;
+          this.triggerHaptic('stick', this.activeGamepadIndex || 0);
+          this.executeAction(actionName);
+        } else if (now - state.firstPressedTime >= initialDelay &&
+                   now - state.lastRepeatTime >= repeatInterval) {
+          state.lastRepeatTime = now;
+          this.executeAction(actionName);
+        }
+      } else {
+        state.isPressed = false;
+      }
+    }
+
     findGamepad() {
       const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
 
@@ -377,7 +408,15 @@
           this.handleDirection('left',  stickLeft || dpadLeft,   now);
           this.handleDirection('right', stickRight || dpadRight, now);
 
-          // 3. Configurable buttons (the D-Pad is handled above)
+          // 3. Right stick (axis 3) - Volume Control
+          const rightAxisY = gamepad.axes[3] || 0;
+          const rightStickUp   = rightAxisY < -deadzone;
+          const rightStickDown = rightAxisY > deadzone;
+
+          this.handleRightStick('up',   rightStickUp,   now);
+          this.handleRightStick('down', rightStickDown, now);
+
+          // 4. Configurable buttons (the D-Pad is handled above)
           const bindings = controller.bindings || {};
           for (let bIdx = 0; bIdx < gamepad.buttons.length; bIdx++) {
             if (bIdx >= DPAD_FIRST && bIdx <= DPAD_LAST) continue;

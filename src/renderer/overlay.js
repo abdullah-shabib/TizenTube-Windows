@@ -433,8 +433,12 @@
                 <div class="tt-btn-pill" data-btn="3">Y / Triangle</div>
                 <div class="tt-btn-pill" data-btn="4">LB</div>
                 <div class="tt-btn-pill" data-btn="5">RB</div>
+                <div class="tt-btn-pill" data-btn="6">LT</div>
+                <div class="tt-btn-pill" data-btn="7">RT</div>
                 <div class="tt-btn-pill" data-btn="8">View / Back</div>
                 <div class="tt-btn-pill" data-btn="9">Start / Menu</div>
+                <div class="tt-btn-pill" data-btn="10">L3</div>
+                <div class="tt-btn-pill" data-btn="11">R3</div>
                 <div class="tt-btn-pill" data-btn="12">D-Up</div>
                 <div class="tt-btn-pill" data-btn="13">D-Down</div>
                 <div class="tt-btn-pill" data-btn="14">D-Left</div>

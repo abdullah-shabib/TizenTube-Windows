@@ -47,8 +47,11 @@ const DEFAULT_CONFIG = {
       button3: { action: 'Search', label: 'Search (Y / Triangle)' },
       button4: { action: 'SeekLeft', label: 'Seek -10s (Left Bumper)' },
       button5: { action: 'SeekRight', label: 'Seek +10s (Right Bumper)' },
+      button6: { action: 'VolumeDown', label: 'Volume Down (Left Trigger)' },
+      button7: { action: 'VolumeUp', label: 'Volume Up (Right Trigger)' },
       button8: { action: 'ToggleFullscreen', label: 'Toggle Fullscreen (Back / View)' },
-      button9: { action: 'ToggleOverlay', label: 'Settings Overlay (Start / Menu)' }
+      button9: { action: 'ToggleOverlay', label: 'Settings Overlay (Start / Menu)' },
+      button11: { action: 'VolumeMute', label: 'Mute / Unmute (R3 / Right Stick Click)' }
       // Buttons 12-15 (D-Pad) are not listed here: they are wired directly to
       // directional navigation with key-repeat and are not remappable.
     }
