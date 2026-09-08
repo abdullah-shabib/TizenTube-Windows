@@ -269,12 +269,25 @@
       transform: translateX(22px);
     }
 
+    /* The dialog scrolls when the content is taller than the screen allows, so
+       the actions are pinned to the bottom rather than scrolling away. The
+       negative margins bleed the bar out to the modal's padding edges so
+       content passes underneath it cleanly. */
+    .tt-actions {
+      position: sticky;
+      bottom: -32px;
+      margin: 0 -32px -32px;
+      padding: 8px 32px 24px;
+      background: var(--tt-surface);
+      border-top: 1px solid var(--tt-border);
+      z-index: 1;
+    }
+
     .tt-footer {
       display: flex;
       justify-content: space-between;
       align-items: center;
       padding-top: 10px;
-      border-top: 1px solid var(--tt-border);
     }
 
     .tt-action-btn {
@@ -642,15 +655,17 @@
             </div>
           </div>
 
-          <!-- Footer Actions -->
-          <div class="tt-footer">
-            <button class="tt-action-btn danger" id="tt-btn-exit">Exit App</button>
-            <div style="display: flex; gap: 12px;">
-              <button class="tt-action-btn" id="tt-btn-reload">Reload YouTube</button>
-              <button class="tt-action-btn primary" id="tt-btn-save">Save & Close</button>
+          <!-- Footer Actions: pinned to the bottom of the dialog -->
+          <div class="tt-actions">
+            <div class="tt-footer">
+              <button class="tt-action-btn danger" id="tt-btn-exit">Exit App</button>
+              <div style="display: flex; gap: 12px;">
+                <button class="tt-action-btn" id="tt-btn-reload">Reload YouTube</button>
+                <button class="tt-action-btn primary" id="tt-btn-save">Save & Close</button>
+              </div>
             </div>
+            <div class="tt-hint">D-Pad / Stick to move &middot; Left & Right to adjust &middot; A to activate &middot; B or Start to close</div>
           </div>
-          <div class="tt-hint">D-Pad / Stick to move &middot; Left & Right to adjust &middot; A to activate &middot; B or Start to close</div>
         </div>
       `);
 
