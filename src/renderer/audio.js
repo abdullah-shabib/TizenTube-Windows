@@ -69,7 +69,7 @@
 
     .tt-hud-bar-fill {
       height: 100%;
-      background: #3ea6ff;
+      background: var(--tt-accent, #ff0000);
       border-radius: 4px;
       transition: width 0.08s ease-out;
     }
@@ -81,7 +81,7 @@
     .tt-hud-text {
       font-size: 15px;
       font-weight: 600;
-      color: #3ea6ff;
+      color: var(--tt-accent-text, #ff5c54);
       min-width: 50px;
       text-align: right;
     }

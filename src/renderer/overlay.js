@@ -20,20 +20,44 @@
   const { ipcRenderer } = require('electron');
 
   const OVERLAY_CSS = `
+    /* YouTube dark-theme palette. Prefixed --tt- so nothing collides with
+       YouTube's own --yt-* custom properties on the page we inject into. */
+    :root {
+      --tt-bg:          #0f0f0f;  /* page backdrop            */
+      --tt-surface:     #212121;  /* dialogs and menus        */
+      --tt-surface-2:   #282828;  /* raised rows and chips    */
+      --tt-surface-3:   #383838;  /* hover                    */
+      --tt-border:      #303030;
+      --tt-border-2:    #3f3f3f;
+      --tt-text:        #f1f1f1;  /* primary text             */
+      --tt-text-2:      #aaaaaa;  /* secondary text           */
+      --tt-text-3:      #717171;  /* hints                    */
+      --tt-accent:      #ff0000;  /* brand red, for fills          */
+      --tt-accent-text: #ff5c54;  /* small text: 4.85:1 on surface */
+      --tt-accent-dim:  rgba(255, 0, 0, 0.35);
+      --tt-red:         #ff0000;  /* brand red                */
+      --tt-red-hover:   #cc0000;
+      --tt-focus:       #ffffff;  /* Leanback focus is a light fill */
+      --tt-focus-fg:    #0f0f0f;
+      --tt-radius:      12px;
+      --tt-radius-pill: 999px;
+      --tt-font: 'YouTube Sans', Roboto, 'Segoe UI', Arial, sans-serif;
+    }
+
     #tizentube-overlay-container {
       position: fixed;
       top: 0;
       left: 0;
       width: 100vw;
       height: 100vh;
-      background: rgba(10, 10, 10, 0.88);
+      background: rgba(15, 15, 15, 0.92);
       backdrop-filter: blur(12px);
       z-index: 2147483647;
       display: flex;
       justify-content: center;
       align-items: center;
-      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      color: #FFFFFF;
+      font-family: var(--tt-font);
+      color: var(--tt-text);
       user-select: none;
       box-sizing: border-box;
       opacity: 0;
@@ -50,8 +74,8 @@
       width: 820px;
       max-width: 92vw;
       max-height: 88vh;
-      background: #181818;
-      border: 1px solid #333;
+      background: var(--tt-surface);
+      border: 1px solid var(--tt-border);
       border-radius: 16px;
       box-shadow: 0 20px 50px rgba(0,0,0,0.8);
       overflow-y: auto;
@@ -65,48 +89,47 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid #2a2a2a;
+      border-bottom: 1px solid var(--tt-border);
       padding-bottom: 16px;
     }
 
     .tt-title {
       font-size: 26px;
       font-weight: 700;
-      color: #3ea6ff;
+      color: var(--tt-text);
       display: flex;
       align-items: center;
       gap: 12px;
     }
 
     .tt-close-btn {
-      background: #272727;
-      border: 1px solid #444;
-      color: #fff;
+      background: var(--tt-surface-2);
+      border: 1px solid var(--tt-border-2);
+      color: var(--tt-text);
       padding: 8px 18px;
-      border-radius: 8px;
+      border-radius: var(--tt-radius-pill);
       cursor: pointer;
       font-size: 15px;
       font-weight: 600;
       transition: background 0.15s;
     }
     .tt-close-btn:hover {
-      background: #3ea6ff;
-      color: #000;
-      border-color: #3ea6ff;
+      background: var(--tt-surface-3);
+      border-color: var(--tt-border-2);
     }
 
     .tt-section {
-      background: #202020;
-      border-radius: 12px;
+      background: var(--tt-surface-2);
+      border-radius: var(--tt-radius);
       padding: 20px;
-      border: 1px solid #2c2c2c;
+      border: 1px solid var(--tt-border);
     }
 
     .tt-section-title {
       font-size: 17px;
       font-weight: 600;
       margin-bottom: 14px;
-      color: #e0e0e0;
+      color: var(--tt-text);
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -122,8 +145,8 @@
     .tt-stick-box {
       width: 110px;
       height: 110px;
-      background: #121212;
-      border: 2px solid #444;
+      background: var(--tt-bg);
+      border: 2px solid var(--tt-border-2);
       border-radius: 50%;
       position: relative;
       flex-shrink: 0;
@@ -134,7 +157,7 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      border: 1px dashed #666;
+      border: 1px dashed var(--tt-text-3);
       border-radius: 50%;
       pointer-events: none;
     }
@@ -142,13 +165,13 @@
     .tt-stick-dot {
       width: 22px;
       height: 22px;
-      background: #3ea6ff;
+      background: var(--tt-accent);
       border-radius: 50%;
       position: absolute;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      box-shadow: 0 0 10px rgba(62, 166, 255, 0.7);
+      box-shadow: 0 0 10px rgba(255, 0, 0, 0.55);
       transition: background 0.05s;
     }
 
@@ -160,20 +183,20 @@
     }
 
     .tt-btn-pill {
-      background: #282828;
-      border: 1px solid #3c3c3c;
+      background: var(--tt-surface-2);
+      border: 1px solid var(--tt-border-2);
       padding: 6px 12px;
       border-radius: 6px;
       font-size: 13px;
-      color: #aaa;
+      color: var(--tt-text-2);
       transition: all 0.05s;
     }
     .tt-btn-pill.pressed {
-      background: #3ea6ff;
-      color: #000;
-      border-color: #3ea6ff;
+      background: var(--tt-accent);
+      color: var(--tt-focus-fg);
+      border-color: var(--tt-accent);
       font-weight: 700;
-      box-shadow: 0 0 8px rgba(62, 166, 255, 0.6);
+      box-shadow: 0 0 8px rgba(255, 0, 0, 0.5);
     }
 
     /* Sliders & Controls */
@@ -191,11 +214,11 @@
     .tt-label {
       font-size: 15px;
       font-weight: 500;
-      color: #ddd;
+      color: var(--tt-text);
     }
     .tt-sublabel {
       font-size: 12px;
-      color: #888;
+      color: var(--tt-text-2);
       margin-top: 2px;
     }
 
@@ -209,7 +232,7 @@
       -webkit-appearance: none;
       width: 180px;
       height: 6px;
-      background: #333;
+      background: var(--tt-border);
       border-radius: 3px;
       outline: none;
     }
@@ -217,7 +240,7 @@
       -webkit-appearance: none;
       width: 18px;
       height: 18px;
-      background: #3ea6ff;
+      background: var(--tt-accent);
       border-radius: 50%;
       cursor: pointer;
     }
@@ -225,7 +248,7 @@
     .tt-value-display {
       font-size: 14px;
       font-weight: 600;
-      color: #3ea6ff;
+      color: var(--tt-accent-text);
       min-width: 48px;
       text-align: right;
     }
@@ -247,7 +270,7 @@
       position: absolute;
       cursor: pointer;
       top: 0; left: 0; right: 0; bottom: 0;
-      background-color: #333;
+      background-color: var(--tt-border);
       transition: .2s;
       border-radius: 26px;
     }
@@ -263,7 +286,7 @@
       border-radius: 50%;
     }
     input:checked + .tt-switch-slider {
-      background-color: #3ea6ff;
+      background-color: var(--tt-accent);
     }
     input:checked + .tt-switch-slider:before {
       transform: translateX(22px);
@@ -274,48 +297,52 @@
       justify-content: space-between;
       align-items: center;
       padding-top: 10px;
-      border-top: 1px solid #2a2a2a;
+      border-top: 1px solid var(--tt-border);
     }
 
     .tt-action-btn {
-      background: #282828;
-      border: 1px solid #444;
-      color: #ddd;
-      padding: 10px 20px;
-      border-radius: 8px;
+      background: var(--tt-surface-2);
+      border: 1px solid var(--tt-border-2);
+      color: var(--tt-text);
+      padding: 10px 22px;
+      border-radius: var(--tt-radius-pill);
       cursor: pointer;
       font-size: 14px;
       font-weight: 600;
       transition: background 0.15s;
     }
     .tt-action-btn:hover {
-      background: #383838;
-      color: #fff;
+      background: var(--tt-surface-3);
+      color: var(--tt-text);
     }
     .tt-action-btn.primary {
-      background: #3ea6ff;
-      color: #000;
-      border-color: #3ea6ff;
+      background: var(--tt-focus);
+      color: var(--tt-focus-fg);
+      border-color: var(--tt-focus);
     }
     .tt-action-btn.primary:hover {
-      background: #65b8ff;
+      background: var(--tt-text-2);
+      border-color: var(--tt-text-2);
     }
     .tt-action-btn.danger:hover {
-      background: #ff4d4d;
-      color: #fff;
-      border-color: #ff4d4d;
+      background: var(--tt-red);
+      color: var(--tt-text);
+      border-color: var(--tt-red);
     }
 
     /* Controller focus ring */
+    /* YouTube's TV UI marks focus with a bright fill rather than a thin ring,
+       because a 1-2px outline disappears at couch distance. */
     .tt-focused {
-      outline: 3px solid #3ea6ff !important;
+      outline: 3px solid var(--tt-focus) !important;
       outline-offset: 4px;
       border-radius: 8px;
+      box-shadow: 0 0 0 7px rgba(255, 255, 255, 0.12) !important;
     }
 
     .tt-hint {
       font-size: 12px;
-      color: #777;
+      color: var(--tt-text-3);
       text-align: center;
       padding-top: 4px;
     }
@@ -327,17 +354,17 @@
       left: 50%;
       transform: translateX(-50%) translateY(-12px);
       z-index: 2147483645;
-      background: rgba(18, 18, 18, 0.94);
-      border: 1px solid #3ea6ff;
+      background: var(--tt-surface);
+      border: 1px solid var(--tt-accent);
       border-radius: 30px;
       padding: 8px 18px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.8), 0 0 14px rgba(62, 166, 255, 0.35);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.8), 0 0 14px var(--tt-accent-dim);
       backdrop-filter: blur(12px);
       display: flex;
       align-items: center;
       gap: 14px;
-      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      color: #FFFFFF;
+      font-family: var(--tt-font);
+      color: var(--tt-text);
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.25s ease, transform 0.25s ease;
@@ -352,22 +379,22 @@
 
     .tt-fs-icon {
       font-size: 16px;
-      color: #3ea6ff;
+      color: var(--tt-accent);
       line-height: 1;
     }
 
     .tt-fs-text {
       font-size: 13px;
-      color: #e0e0e0;
+      color: var(--tt-text);
     }
     .tt-fs-text strong {
-      color: #3ea6ff;
+      color: var(--tt-accent);
       font-weight: 600;
     }
 
     .tt-fs-btn {
-      background: #3ea6ff;
-      color: #000000;
+      background: var(--tt-accent);
+      color: var(--tt-focus-fg);
       border: none;
       border-radius: 14px;
       padding: 5px 12px;
@@ -377,13 +404,13 @@
       transition: background 0.15s;
     }
     .tt-fs-btn:hover {
-      background: #65b8ff;
+      background: var(--tt-accent);
     }
 
     .tt-fs-close {
       background: transparent;
       border: none;
-      color: #888888;
+      color: var(--tt-text-2);
       font-size: 18px;
       cursor: pointer;
       padding: 0 4px;
@@ -391,7 +418,7 @@
       transition: color 0.15s;
     }
     .tt-fs-close:hover {
-      color: #ffffff;
+      color: var(--tt-text);
     }
   `;
 
@@ -904,7 +931,7 @@
       }
 
       statusEl.textContent = gamepad.id.slice(0, 42);
-      statusEl.style.color = '#3ea6ff';
+      statusEl.style.color = 'var(--tt-accent-text)';
 
       // Analog stick
       const dot = document.getElementById('tt-stick-dot');
