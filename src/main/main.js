@@ -12,7 +12,7 @@
  *
  * Bundles TizenTube (GPL-3.0-only) by Reis Can. See NOTICE.md.
  */
-const { app, BrowserWindow, session, ipcMain, powerSaveBlocker, Menu, Tray, screen } = require('electron');
+const { app, BrowserWindow, session, ipcMain, powerSaveBlocker, Menu, Tray, screen, clipboard } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
@@ -20,10 +20,12 @@ const crypto = require('crypto');
 const configManager = require('./config');
 const NativeVibrationManager = require('./native-vibration');
 const DiscordRPC = require('./discord-rpc');
+const RemoteServer = require('./remote-server');
 const { checkForUpdates, updatesSupported } = require('./updater');
 
 const nativeVibration = new NativeVibrationManager();
 let discordRpc = null;
+let remoteServer = null;
 let tray = null;
 let isPiP = false;
 let prePiPState = null;
@@ -477,6 +479,118 @@ function setSleepTimer(minutes) {
   return { active: true, remainingMs: totalMs };
 }
 
+function sendNativeKey(keyCode) {
+  if (mainWindow && mainWindow.webContents && keyCode) {
+    mainWindow.webContents.sendInputEvent({ type: 'keyDown', keyCode });
+    setTimeout(() => {
+      if (mainWindow && mainWindow.webContents) {
+        mainWindow.webContents.sendInputEvent({ type: 'keyUp', keyCode });
+      }
+    }, 40);
+  }
+}
+
+function handleClipboardPaste() {
+  const text = (clipboard.readText() || '').trim();
+  if (!text || !mainWindow || mainWindow.isDestroyed()) return;
+
+  const ytMatch = text.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([a-zA-Z0-9_-]{11})/);
+  if (ytMatch && ytMatch[1]) {
+    mainWindow.loadURL(`https://www.youtube.com/tv#/watch?v=${ytMatch[1]}`);
+    mainWindow.webContents.send('tizentube-show-toast', {
+      message: `Playing pasted video: ${ytMatch[1]}`,
+      icon: '▶',
+      durationMs: 2500
+    });
+    return;
+  }
+
+  mainWindow.loadURL(`https://www.youtube.com/tv#/search?q=${encodeURIComponent(text)}`);
+  mainWindow.webContents.send('tizentube-show-toast', {
+    message: `Pasted search: "${text.length > 30 ? text.slice(0, 27) + '...' : text}"`,
+    icon: '🔍',
+    durationMs: 2500
+  });
+}
+
+function initRemoteServer() {
+  const cfg = configManager.get();
+  if (cfg.remote && cfg.remote.enabled === false) return;
+
+  try {
+    if (remoteServer) {
+      remoteServer.stop();
+      remoteServer = null;
+    }
+
+    remoteServer = new RemoteServer({ port: (cfg.remote && cfg.remote.port) || 8989 });
+
+    remoteServer.on('search', (query) => {
+      if (!mainWindow || mainWindow.isDestroyed() || !query) return;
+      const text = query.trim();
+      const ytMatch = text.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([a-zA-Z0-9_-]{11})/);
+      if (ytMatch && ytMatch[1]) {
+        mainWindow.loadURL(`https://www.youtube.com/tv#/watch?v=${ytMatch[1]}`);
+      } else {
+        mainWindow.loadURL(`https://www.youtube.com/tv#/search?q=${encodeURIComponent(text)}`);
+      }
+      mainWindow.webContents.send('tizentube-show-toast', {
+        message: `Remote search: "${text.length > 30 ? text.slice(0, 27) + '...' : text}"`,
+        icon: '📱',
+        durationMs: 2500
+      });
+    });
+
+    remoteServer.on('action', (action) => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+
+      if (action === 'PlayPause') {
+        mainWindow.webContents.send('media-control-action', 'toggle-play');
+      } else if (action === 'SeekLeft') {
+        sendNativeKey('Left');
+      } else if (action === 'SeekRight') {
+        sendNativeKey('Right');
+      } else if (action === 'VolumeUp') {
+        mainWindow.webContents.send('volume-adjust', 0.05);
+      } else if (action === 'VolumeDown') {
+        mainWindow.webContents.send('volume-adjust', -0.05);
+      } else if (action === 'VolumeMute') {
+        mainWindow.webContents.send('volume-toggle-mute');
+      } else if (action === 'ToggleFullscreen') {
+        mainWindow.setFullScreen(!mainWindow.isFullScreen());
+      } else if (action === 'ToggleOverlay') {
+        mainWindow.webContents.send('toggle-overlay');
+      } else if (action === 'TogglePiP') {
+        togglePiP();
+      } else if (action === 'ArrowUp') {
+        sendNativeKey('Up');
+      } else if (action === 'ArrowDown') {
+        sendNativeKey('Down');
+      } else if (action === 'ArrowLeft') {
+        sendNativeKey('Left');
+      } else if (action === 'ArrowRight') {
+        sendNativeKey('Right');
+      } else if (action === 'Enter') {
+        sendNativeKey('Return');
+      } else if (action === 'Escape') {
+        sendNativeKey('Escape');
+      }
+    });
+
+    remoteServer.on('speed', (speed) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('speed-set', speed);
+      }
+    });
+
+    remoteServer.start().catch((err) => {
+      console.warn('[TizenTube] Could not start RemoteServer:', err.message);
+    });
+  } catch (err) {
+    console.warn('[TizenTube] Failed to initialize RemoteServer:', err.message);
+  }
+}
+
 function createWindow() {
   const config = configManager.init();
 
@@ -499,6 +613,9 @@ function createWindow() {
 
   // Initialize System Tray
   createTray();
+
+  // Initialize Mobile Companion Remote Server
+  initRemoteServer();
 
   // Check for script updates asynchronously if enabled
   if (config.tizentube.autoUpdateScript) {
@@ -653,6 +770,18 @@ function createWindow() {
       } else if (input.control && (input.key === 'm' || input.key === 'M')) {
         event.preventDefault();
         mainWindow.webContents.send('volume-toggle-mute');
+      } else if (input.control && (input.key === 'v' || input.key === 'V')) {
+        event.preventDefault();
+        handleClipboardPaste();
+      } else if (input.key === '[' || (input.shift && input.key === '<')) {
+        event.preventDefault();
+        mainWindow.webContents.send('speed-adjust', -0.25);
+      } else if (input.key === ']' || (input.shift && input.key === '>')) {
+        event.preventDefault();
+        mainWindow.webContents.send('speed-adjust', 0.25);
+      } else if (input.shift && input.key === '{') {
+        event.preventDefault();
+        mainWindow.webContents.send('speed-set', 1.0);
       }
     }
   });
@@ -696,6 +825,14 @@ ipcMain.handle('save-config', (event, newConfig) => {
     discordRpc.setEnabled(updated.discord.enabled !== false);
     if (updated.discord.clientId) {
       discordRpc.setClientId(updated.discord.clientId);
+    }
+  }
+  if (updated.remote) {
+    if (updated.remote.enabled === false && remoteServer) {
+      remoteServer.stop();
+    } else if (updated.remote.enabled !== false && (!remoteServer || !remoteServer.running)) {
+      if (!remoteServer) initRemoteServer();
+      else remoteServer.start();
     }
   }
   if (mainWindow && typeof updated.display.fullscreen === 'boolean') {
@@ -795,6 +932,66 @@ ipcMain.on('media-status-update', (event, data = {}) => {
       });
     }
   }
+
+  if (remoteServer) {
+    remoteServer.setMediaStatus({ title, author, isPlaying, duration, currentTime });
+  }
+});
+
+// Query native controller battery status
+ipcMain.handle('get-controller-battery', (event, slot = 0) => {
+  if (nativeVibration && typeof nativeVibration.getBatteryStatus === 'function') {
+    return nativeVibration.getBatteryStatus(slot);
+  }
+  return { connected: false, supported: false, isWired: false, level: 'unknown', percent: 100 };
+});
+
+// Query mobile companion remote info & QR code SVG
+ipcMain.handle('get-remote-info', () => {
+  if (!remoteServer) {
+    return { enabled: false, url: '', qrSvg: '' };
+  }
+  return {
+    enabled: remoteServer.running,
+    url: remoteServer.getUrl(),
+    qrSvg: remoteServer.getQRCodeSVG(180)
+  };
+});
+
+// Toggle mobile companion remote server from settings
+ipcMain.handle('toggle-remote-server', (event, enable) => {
+  const cfg = configManager.get();
+  cfg.remote = cfg.remote || {};
+  cfg.remote.enabled = !!enable;
+  configManager.set(cfg);
+
+  if (enable) {
+    if (!remoteServer) initRemoteServer();
+    else if (!remoteServer.running) remoteServer.start();
+  } else {
+    if (remoteServer) remoteServer.stop();
+  }
+
+  return {
+    enabled: remoteServer ? remoteServer.running : false,
+    url: remoteServer ? remoteServer.getUrl() : '',
+    qrSvg: remoteServer ? remoteServer.getQRCodeSVG(180) : ''
+  };
+});
+
+// Focus window on controller reconnection
+ipcMain.on('controller-reconnected', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.focus();
+    mainWindow.webContents.focus();
+  }
+});
+
+// Forward playback speed to remote server
+ipcMain.on('speed-changed', (event, { speed }) => {
+  if (remoteServer) {
+    remoteServer.setPlaybackSpeed(speed);
+  }
 });
 
 // The payload is defaulted so a bare invoke cannot throw on destructuring, and
@@ -881,6 +1078,10 @@ if (!app.requestSingleInstanceLock()) {
 app.on('window-all-closed', () => {
   applyPowerSaveSetting(false);
   nativeVibration.stopAll();
+  if (remoteServer) {
+    remoteServer.stop();
+    remoteServer = null;
+  }
   if (discordRpc) {
     discordRpc.disconnect();
   }

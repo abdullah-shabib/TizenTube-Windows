@@ -52,6 +52,7 @@ except the D-pad can be remapped in `config.json` (including `VolumeUp`, `Volume
 
 Keyboard works too: arrows, Enter, Esc, Space, `F11` fullscreen, `Ctrl+Shift+P` (or `Alt+P`) Mini-Player (PiP), `F2` overlay, `F5` reload,
 and volume controls (`Ctrl+Up` / `Ctrl+Down`, `Ctrl+M` mute, and media keys).
+Speed controls: `[` / `]` to adjust playback speed, `Shift+{` to reset to 1.0x, or `Ctrl+V` to paste search queries / video URLs.
 
 ### Windows & HTPC Integration
 
@@ -61,6 +62,14 @@ and volume controls (`Ctrl+Up` / `Ctrl+Down`, `Ctrl+M` mute, and media keys).
 - **System Tray & Background Audio**: Minimizing hides the window to the system tray while audio continues uninterrupted. Left-click or double-click to restore, or use the tray context menu for quick media controls.
 - **Multi-Monitor Position Memory**: Automatically remembers and restores window dimensions and placement on secondary monitors or TVs across restarts.
 - **Sleep Timer & Display Sleep Blocker**: In-app sleep timer (15m to 120m) with an on-screen warning before auto-closing. Keeps screens awake during active playback.
+
+### Controller & Living Room Quality of Life
+
+- **Cursor Auto-Hide**: Automatically hides the mouse cursor after 2.5 seconds of inactivity in windowed, maximized, and fullscreen modes so it never obstructs video. Moves restore the cursor instantly.
+- **Quick Playback Speed Adjustment**: Tap **L3 (Left Stick Click)** or hold **Left Bumper (LB) + D-Pad Up/Down** to cycle playback speed (1.0x, 1.25x, 1.5x, 2.0x) on the fly with tactile haptic pulses and on-screen HUD display.
+- **Controller Inactivity & Reconnect Resilience**: Bluetooth and wireless controllers (such as Xbox pads sleeping after 15 minutes) cleanly clear stuck inputs upon disconnecting and immediately re-bind and refocus the window when powered back on.
+- **Controller Battery Indicator**: Monitors battery level via Windows XInput and Web Gamepad API. Shows a subtle on-screen warning toast when battery drops below 20% and displays live battery status in the Settings Overlay.
+- **Mobile Typing Companion & Remote**: Built-in zero-dependency local network server (`http://<LAN_IP>:8989`). Scan the QR code in Settings with your phone to type search queries with your phone keyboard, use voice dictation, send video links, and use a responsive mobile remote. Also supports `Ctrl+V` clipboard paste directly into TV search.
 
 The settings overlay (Start, or `F2`) has a live controller tester — useful for
 checking a pad is seen at all, and for tuning stick deadzone without guessing.

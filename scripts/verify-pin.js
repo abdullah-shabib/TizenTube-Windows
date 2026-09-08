@@ -36,6 +36,8 @@ const SOURCES = [
   'src/main/config.js',
   'src/main/native-vibration.js',
   'src/main/discord-rpc.js',
+  'src/main/remote-server.js',
+  'src/main/qr.js',
   'src/main/updater.js',
   'src/preload/preload.js',
   'src/renderer/controller.js',

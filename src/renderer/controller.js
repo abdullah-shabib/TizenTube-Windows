@@ -72,6 +72,7 @@
       button7: { action: 'VolumeUp' },
       button8: { action: 'ToggleFullscreen' },
       button9: { action: 'ToggleOverlay' },
+      button10: { action: 'CyclePlaybackSpeed' },
       button11: { action: 'VolumeMute' }
     }
   };
@@ -112,6 +113,14 @@
       this.isCursorHidden = false;
       this.onStateChangeCallbacks = [];
       this.overlayOpen = false;
+
+      this.batteryStatus = { connected: false, isWired: false, level: 'unknown', percent: 100, supported: false };
+      this.lastBatteryWarningTime = 0;
+      this.lastBatteryPollTime = 0;
+      this.lbUsedInCombo = false;
+      this.comboUpPressed = false;
+      this.comboDownPressed = false;
+      this.comboResetPressed = false;
 
       this.poll = this.poll.bind(this);
     }
@@ -174,16 +183,101 @@
     setupWindowListeners() {
       window.addEventListener('gamepadconnected', (e) => {
         console.log('[TizenTube Controller] Gamepad connected event:', e.gamepad.id, 'index:', e.gamepad.index);
-        this.activeGamepadIndex = e.gamepad.index;
+        this.handleGamepadConnected(e.gamepad);
       });
 
       window.addEventListener('gamepaddisconnected', (e) => {
         console.log('[TizenTube Controller] Gamepad disconnected event:', e.gamepad.id);
-        if (this.activeGamepadIndex === e.gamepad.index) {
-          this.activeGamepadIndex = null;
-          this.lastLoggedGamepadId = null;
-        }
+        this.handleGamepadDisconnected(e.gamepad);
       });
+    }
+
+    handleGamepadConnected(pad) {
+      if (!pad) return;
+      this.activeGamepadIndex = pad.index;
+      this.lastLoggedGamepadId = pad.id;
+      this.clearAllInputStates();
+
+      const padName = pad.id.split('(')[0].trim() || 'Gamepad';
+      window.dispatchEvent(new CustomEvent('tizentube-show-toast', {
+        detail: { message: `Controller connected: ${padName}`, icon: '🎮', durationMs: 2500 }
+      }));
+
+      this.triggerHaptic('connect', pad.index);
+      ipcRenderer.send('controller-reconnected');
+      this.checkBattery(pad.index, true);
+    }
+
+    handleGamepadDisconnected(pad) {
+      if (this.activeGamepadIndex === null || (pad && this.activeGamepadIndex === pad.index)) {
+        this.activeGamepadIndex = null;
+        this.lastLoggedGamepadId = null;
+        this.clearAllInputStates();
+        window.dispatchEvent(new CustomEvent('tizentube-show-toast', {
+          detail: { message: 'Controller disconnected', icon: '🎮', durationMs: 2500 }
+        }));
+      }
+    }
+
+    clearAllInputStates() {
+      this.buttonStates.clear();
+      for (const key of Object.keys(this.directionStates)) {
+        this.directionStates[key] = { isPressed: false, firstPressedTime: 0, lastRepeatTime: 0 };
+      }
+      for (const key of Object.keys(this.rightStickStates)) {
+        this.rightStickStates[key] = { isPressed: false, firstPressedTime: 0, lastRepeatTime: 0 };
+      }
+      this.lbUsedInCombo = false;
+      this.comboUpPressed = false;
+      this.comboDownPressed = false;
+      this.comboResetPressed = false;
+    }
+
+    async checkBattery(slot = 0, force = false) {
+      const now = Date.now();
+      if (!force && now - this.lastBatteryPollTime < 30000) return;
+      this.lastBatteryPollTime = now;
+
+      try {
+        const status = await ipcRenderer.invoke('get-controller-battery', slot);
+        if (status && status.supported) {
+          this.batteryStatus = status;
+          window.dispatchEvent(new CustomEvent('tizentube-battery-status', { detail: status }));
+
+          // If wireless controller is low or empty (<= 20%)
+          if (!status.isWired && status.connected && (status.level === 'low' || status.level === 'empty' || status.percent <= 20)) {
+            if (now - this.lastBatteryWarningTime > 10 * 60 * 1000) {
+              this.lastBatteryWarningTime = now;
+              window.dispatchEvent(new CustomEvent('tizentube-show-toast', {
+                detail: {
+                  message: `Controller battery low (~${status.percent}%). Please recharge or plug in.`,
+                  icon: '🪫',
+                  durationMs: 4000
+                }
+              }));
+            }
+          }
+          return;
+        }
+      } catch (err) {
+        // Fall back to Web Gamepad API battery
+      }
+
+      try {
+        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        const pad = gamepads[slot];
+        if (pad && pad.battery) {
+          const pct = Math.round(pad.battery.level * 100);
+          this.batteryStatus = {
+            connected: true,
+            isWired: pad.battery.charging,
+            level: pct <= 20 ? 'low' : 'good',
+            percent: pct,
+            supported: true
+          };
+          window.dispatchEvent(new CustomEvent('tizentube-battery-status', { detail: this.batteryStatus }));
+        }
+      } catch (e) {}
     }
 
     getCursorStyleEl() {
@@ -195,38 +289,53 @@
       if (!this.cursorStyleEl || !this.cursorStyleEl.isConnected) {
         this.cursorStyleEl = document.createElement('style');
         this.cursorStyleEl.id = 'tizentube-cursor-style';
+        this.cursorStyleEl.textContent = `
+          html.tt-hide-cursor, html.tt-hide-cursor * {
+            cursor: none !important;
+          }
+        `;
         root.appendChild(this.cursorStyleEl);
       }
       return this.cursorStyleEl;
     }
 
     setupCursorManagement() {
-      // Listeners are always attached so the setting can be toggled at runtime
-      // without restarting; the flag is checked when hiding instead.
       const onActivity = () => this.showCursor(true);
-      window.addEventListener('mousemove', onActivity);
-      window.addEventListener('mousedown', onActivity);
+      window.addEventListener('mousemove', onActivity, { passive: true });
+      window.addEventListener('mousedown', onActivity, { passive: true });
+      window.addEventListener('pointermove', onActivity, { passive: true });
+      window.addEventListener('wheel', onActivity, { passive: true });
+      window.addEventListener('focus', onActivity, { passive: true });
+      window.addEventListener('resize', onActivity, { passive: true });
+
       this.getCursorStyleEl();
+
+      // Immediately arm cursor auto-hide so launching in windowed mode hides cursor after 2.5s
+      if (this.autoHideEnabled()) {
+        this.showCursor(true);
+      }
     }
 
     showCursor(rearmTimer) {
       if (this.isCursorHidden) {
-        const style = this.getCursorStyleEl();
-        if (style) style.textContent = '';
+        if (document.documentElement) {
+          document.documentElement.classList.remove('tt-hide-cursor');
+        }
         this.isCursorHidden = false;
       }
       clearTimeout(this.cursorHideTimer);
       if (rearmTimer && this.autoHideEnabled()) {
-        const delay = (this.config && this.config.display && this.config.display.cursorHideDelayMs) || 3000;
+        const delay = (this.config && this.config.display && this.config.display.cursorHideDelayMs) || 2500;
         this.cursorHideTimer = setTimeout(() => this.hideCursor(), delay);
       }
     }
 
     hideCursor() {
       if (this.isCursorHidden || !this.autoHideEnabled()) return;
-      const style = this.getCursorStyleEl();
-      if (!style) return;
-      style.textContent = '* { cursor: none !important; }';
+      this.getCursorStyleEl();
+      if (document.documentElement) {
+        document.documentElement.classList.add('tt-hide-cursor');
+      }
       this.isCursorHidden = true;
     }
 
@@ -261,6 +370,26 @@
 
       if (action === 'VolumeMute') {
         window.dispatchEvent(new CustomEvent('tizentube-volume-toggle-mute'));
+        return;
+      }
+
+      if (action === 'CyclePlaybackSpeed') {
+        window.dispatchEvent(new CustomEvent('tizentube-speed-cycle'));
+        return;
+      }
+
+      if (action === 'SpeedUp') {
+        window.dispatchEvent(new CustomEvent('tizentube-speed-adjust', { detail: { delta: 0.25 } }));
+        return;
+      }
+
+      if (action === 'SpeedDown') {
+        window.dispatchEvent(new CustomEvent('tizentube-speed-adjust', { detail: { delta: -0.25 } }));
+        return;
+      }
+
+      if (action === 'ResetSpeed') {
+        window.dispatchEvent(new CustomEvent('tizentube-speed-set', { detail: { speed: 1.0 } }));
         return;
       }
 
@@ -370,12 +499,17 @@
 
       for (let i = 0; i < gamepads.length; i++) {
         if (gamepads[i] && gamepads[i].connected) {
-          this.activeGamepadIndex = i;
+          if (this.activeGamepadIndex === null || this.activeGamepadIndex !== i) {
+            this.handleGamepadConnected(gamepads[i]);
+          }
           return gamepads[i];
         }
       }
 
-      this.activeGamepadIndex = null;
+      if (this.activeGamepadIndex !== null) {
+        this.handleGamepadDisconnected(null);
+      }
+
       return null;
     }
 
@@ -388,6 +522,10 @@
             'axes:', gamepad.axes.length, 'buttons:', gamepad.buttons.length);
           this.lastLoggedGamepadId = gamepad.id;
           this.triggerHaptic('connect', gamepad.index);
+        }
+
+        if (gamepad) {
+          this.checkBattery(gamepad.index);
         }
 
         // Always notify listeners, including with null, so the HUD can report
@@ -416,16 +554,68 @@
           const stickUp    = axisY < -deadzone;
           const stickDown  = axisY > deadzone;
 
-          // 2. D-Pad (buttons 12-15)
+          // 2. D-Pad (buttons 12-15) & Speed Adjustment Combos
+          const isLBPressed = this.isButtonPressed(gamepad, 4);
+          const isRBPressed = this.isButtonPressed(gamepad, 5);
+
           const dpadUp    = this.isButtonPressed(gamepad, 12);
           const dpadDown  = this.isButtonPressed(gamepad, 13);
           const dpadLeft  = this.isButtonPressed(gamepad, 14);
           const dpadRight = this.isButtonPressed(gamepad, 15);
 
-          this.handleDirection('up',    stickUp || dpadUp,       now);
-          this.handleDirection('down',  stickDown || dpadDown,   now);
-          this.handleDirection('left',  stickLeft || dpadLeft,   now);
-          this.handleDirection('right', stickRight || dpadRight, now);
+          let speedComboTriggered = false;
+          if (isLBPressed) {
+            if (isRBPressed) {
+              if (!this.comboResetPressed) {
+                this.comboResetPressed = true;
+                this.triggerHaptic('button', gamepad.index);
+                this.executeAction('ResetSpeed');
+              }
+              speedComboTriggered = true;
+            } else {
+              this.comboResetPressed = false;
+            }
+
+            if (dpadUp || dpadRight) {
+              if (!this.comboUpPressed) {
+                this.comboUpPressed = true;
+                this.triggerHaptic('button', gamepad.index);
+                this.executeAction('SpeedUp');
+              }
+              speedComboTriggered = true;
+            } else {
+              this.comboUpPressed = false;
+            }
+
+            if (dpadDown || dpadLeft) {
+              if (!this.comboDownPressed) {
+                this.comboDownPressed = true;
+                this.triggerHaptic('button', gamepad.index);
+                this.executeAction('SpeedDown');
+              }
+              speedComboTriggered = true;
+            } else {
+              this.comboDownPressed = false;
+            }
+          } else {
+            this.comboResetPressed = false;
+            this.comboUpPressed = false;
+            this.comboDownPressed = false;
+          }
+
+          if (speedComboTriggered) {
+            this.lbUsedInCombo = true;
+          }
+          if (!isLBPressed) {
+            this.lbUsedInCombo = false;
+          }
+
+          if (!speedComboTriggered) {
+            this.handleDirection('up',    stickUp || dpadUp,       now);
+            this.handleDirection('down',  stickDown || dpadDown,   now);
+            this.handleDirection('left',  stickLeft || dpadLeft,   now);
+            this.handleDirection('right', stickRight || dpadRight, now);
+          }
 
           // 3. Right stick (axis 3) - Volume Control
           const rightAxisY = gamepad.axes[3] || 0;
@@ -439,6 +629,7 @@
           const bindings = controller.bindings || {};
           for (let bIdx = 0; bIdx < gamepad.buttons.length; bIdx++) {
             if (bIdx >= DPAD_FIRST && bIdx <= DPAD_LAST) continue;
+            if (bIdx === 4 && this.lbUsedInCombo) continue;
 
             const isPressed = this.isButtonPressed(gamepad, bIdx);
             const binding = bindings['button' + bIdx];

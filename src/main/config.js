@@ -51,6 +51,7 @@ const DEFAULT_CONFIG = {
       button7: { action: 'VolumeUp', label: 'Volume Up (Right Trigger)' },
       button8: { action: 'ToggleFullscreen', label: 'Toggle Fullscreen (Back / View)' },
       button9: { action: 'ToggleOverlay', label: 'Settings Overlay (Start / Menu)' },
+      button10: { action: 'CyclePlaybackSpeed', label: 'Playback Speed (L3 / Left Stick Click)' },
       button11: { action: 'VolumeMute', label: 'Mute / Unmute (R3 / Right Stick Click)' }
       // Buttons 12-15 (D-Pad) are not listed here: they are wired directly to
       // directional navigation with key-repeat and are not remappable.
@@ -62,13 +63,17 @@ const DEFAULT_CONFIG = {
     // banner in overlay.js covers people who switch to windowed.
     fullscreen: true,
     autoHideCursor: true,
-    cursorHideDelayMs: 3000,
+    cursorHideDelayMs: 2500,
     preventDisplaySleep: true,
     windowBounds: null
   },
   audio: {
     volume: 1.0,
     muted: false
+  },
+  remote: {
+    enabled: true,
+    port: 8989
   },
   discord: {
     enabled: true,

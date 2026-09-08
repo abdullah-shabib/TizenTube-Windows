@@ -90,7 +90,55 @@
     .tt-hud-text.muted {
       color: var(--tt-text-2);
     }
+
+    #tizentube-toast-hud {
+      position: fixed;
+      top: 36px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-12px);
+      z-index: 2147483647;
+      background: var(--tt-scrim);
+      border: 1px solid var(--tt-border);
+      border-radius: 12px;
+      padding: 12px 24px;
+      box-shadow: var(--tt-shadow);
+      backdrop-filter: blur(14px);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--tt-font);
+      color: var(--tt-text);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+      user-select: none;
+      font-size: 16px;
+      font-weight: 600;
+      max-width: 90vw;
+      text-align: center;
+    }
+
+    #tizentube-toast-hud.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .tt-toast-icon {
+      font-size: 20px;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tt-toast-text {
+      color: var(--tt-accent-text);
+      font-weight: 600;
+      font-size: 15px;
+    }
   `;
+
+  const PLAYBACK_SPEEDS = [1.0, 1.25, 1.5, 2.0];
 
   function whenDomReady(fn) {
     if (document.body) {
@@ -118,8 +166,11 @@
     constructor() {
       this.volume = 1.0;
       this.muted = false;
+      this.playbackSpeed = 1.0;
       this.hudEl = null;
       this.hudTimer = null;
+      this.toastEl = null;
+      this.toastTimer = null;
       this.listeners = [];
       this.persistTimer = null;
       this.applyingInternally = false;
@@ -138,6 +189,7 @@
       whenDomReady(() => {
         this.injectStyles();
         this.createHUD();
+        this.createToastHUD();
         this.applyToAll();
       });
 
@@ -195,6 +247,71 @@
       if (!this.hudEl) return;
       const scale = Math.min(3, Math.max(1, window.innerWidth / OVERLAY_DESIGN_WIDTH));
       this.hudEl.style.zoom = scale;
+    }
+
+    createToastHUD() {
+      if (document.getElementById('tizentube-toast-hud')) {
+        this.toastEl = document.getElementById('tizentube-toast-hud');
+        return;
+      }
+
+      const toast = document.createElement('div');
+      toast.id = 'tizentube-toast-hud';
+      toast.innerHTML = this.getSafeHTML(`
+        <span class="tt-toast-icon" id="tt-toast-icon" style="display: none;"></span>
+        <span class="tt-toast-text" id="tt-toast-text"></span>
+      `);
+
+      (document.body || document.documentElement).appendChild(toast);
+      this.toastEl = toast;
+
+      this.applyToastViewportScale();
+      window.addEventListener('resize', () => this.applyToastViewportScale());
+    }
+
+    applyToastViewportScale() {
+      if (!this.toastEl) return;
+      const scale = Math.min(3, Math.max(1, window.innerWidth / OVERLAY_DESIGN_WIDTH));
+      this.toastEl.style.zoom = scale;
+    }
+
+    showToast(message, options = {}) {
+      if (!this.toastEl) {
+        this.createToastHUD();
+      }
+      if (!this.toastEl) return;
+
+      if (!this.toastEl.isConnected) {
+        (document.body || document.documentElement).appendChild(this.toastEl);
+      }
+
+      const icon = (typeof options === 'string' ? options : (options && options.icon)) || '';
+      const duration = (typeof options === 'object' && options && options.durationMs) || 2200;
+
+      const iconEl = document.getElementById('tt-toast-icon');
+      const textEl = document.getElementById('tt-toast-text');
+
+      if (iconEl) {
+        if (icon) {
+          iconEl.textContent = icon;
+          iconEl.style.display = 'inline-flex';
+        } else {
+          iconEl.style.display = 'none';
+        }
+      }
+
+      if (textEl) {
+        textEl.textContent = message || '';
+      }
+
+      this.toastEl.classList.add('visible');
+
+      clearTimeout(this.toastTimer);
+      this.toastTimer = setTimeout(() => {
+        if (this.toastEl) {
+          this.toastEl.classList.remove('visible');
+        }
+      }, duration);
     }
 
     showHUD() {
@@ -274,6 +391,9 @@
         const media = e.target;
         if (media && (media.tagName === 'VIDEO' || media.tagName === 'AUDIO')) {
           this.applyToElement(media);
+          if (media.tagName === 'VIDEO' && this.playbackSpeed !== 1.0) {
+            try { media.playbackRate = this.playbackSpeed; } catch (err) {}
+          }
         }
       };
 
@@ -308,6 +428,18 @@
         this.toggleMute();
       });
 
+      ipcRenderer.on('speed-cycle', () => {
+        this.cyclePlaybackSpeed();
+      });
+
+      ipcRenderer.on('speed-adjust', (event, delta) => {
+        this.adjustPlaybackSpeed(delta);
+      });
+
+      ipcRenderer.on('speed-set', (event, speed) => {
+        this.setPlaybackSpeed(speed);
+      });
+
       window.addEventListener('tizentube-volume-change', (e) => {
         const delta = (e.detail && typeof e.detail.delta === 'number') ? e.detail.delta : 0.05;
         this.adjustVolume(delta);
@@ -320,6 +452,27 @@
       window.addEventListener('tizentube-volume-set', (e) => {
         if (e.detail && Number.isFinite(e.detail.volume)) {
           this.setVolume(e.detail.volume);
+        }
+      });
+
+      window.addEventListener('tizentube-speed-cycle', () => {
+        this.cyclePlaybackSpeed();
+      });
+
+      window.addEventListener('tizentube-speed-adjust', (e) => {
+        const delta = (e.detail && typeof e.detail.delta === 'number') ? e.detail.delta : 0.25;
+        this.adjustPlaybackSpeed(delta);
+      });
+
+      window.addEventListener('tizentube-speed-set', (e) => {
+        if (e.detail && Number.isFinite(e.detail.speed)) {
+          this.setPlaybackSpeed(e.detail.speed);
+        }
+      });
+
+      window.addEventListener('tizentube-show-toast', (e) => {
+        if (e.detail && e.detail.message) {
+          this.showToast(e.detail.message, e.detail);
         }
       });
     }
@@ -371,6 +524,55 @@
 
     toggleMute() {
       this.setMuted(!this.muted, true, true);
+    }
+
+    getPlaybackSpeed() {
+      const video = document.querySelector('video');
+      if (video && Number.isFinite(video.playbackRate) && video.playbackRate > 0) {
+        return video.playbackRate;
+      }
+      return this.playbackSpeed || 1.0;
+    }
+
+    setPlaybackSpeed(speed, showToast = true) {
+      const num = Number(speed);
+      if (!Number.isFinite(num) || num <= 0) return;
+      const rounded = Math.round(num * 100) / 100;
+      this.playbackSpeed = rounded;
+
+      const video = document.querySelector('video');
+      if (video) {
+        try { video.playbackRate = rounded; } catch (e) {}
+      }
+
+      const player = document.getElementById('movie_player');
+      if (player && typeof player.setPlaybackRate === 'function') {
+        try { player.setPlaybackRate(rounded); } catch (e) {}
+      }
+
+      if (showToast) {
+        this.showToast(`Playback Speed: ${rounded}x`, { icon: '⚡', durationMs: 1600 });
+      }
+
+      window.dispatchEvent(new CustomEvent('tizentube-speed-changed', { detail: { speed: rounded } }));
+    }
+
+    cyclePlaybackSpeed() {
+      const current = this.getPlaybackSpeed();
+      let nextIndex = 0;
+      for (let i = 0; i < PLAYBACK_SPEEDS.length; i++) {
+        if (Math.abs(PLAYBACK_SPEEDS[i] - current) < 0.05) {
+          nextIndex = (i + 1) % PLAYBACK_SPEEDS.length;
+          break;
+        }
+      }
+      this.setPlaybackSpeed(PLAYBACK_SPEEDS[nextIndex]);
+    }
+
+    adjustPlaybackSpeed(delta) {
+      const current = this.getPlaybackSpeed();
+      const newSpeed = Math.max(0.5, Math.min(3.0, Math.round((current + delta) * 100) / 100));
+      this.setPlaybackSpeed(newSpeed);
     }
 
     schedulePersist() {
