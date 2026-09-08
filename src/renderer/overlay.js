@@ -18,32 +18,9 @@
 
 (function () {
   const { ipcRenderer } = require('electron');
+  const { ensureThemeTokens } = require('./theme.js');
 
   const OVERLAY_CSS = `
-    /* YouTube dark-theme palette. Prefixed --tt- so nothing collides with
-       YouTube's own --yt-* custom properties on the page we inject into. */
-    :root {
-      --tt-bg:          #0f0f0f;  /* page backdrop            */
-      --tt-surface:     #212121;  /* dialogs and menus        */
-      --tt-surface-2:   #282828;  /* raised rows and chips    */
-      --tt-surface-3:   #383838;  /* hover                    */
-      --tt-border:      #303030;
-      --tt-border-2:    #3f3f3f;
-      --tt-text:        #f1f1f1;  /* primary text             */
-      --tt-text-2:      #aaaaaa;  /* secondary text           */
-      --tt-text-3:      #717171;  /* hints                    */
-      --tt-accent:      #ff0000;  /* brand red, for fills          */
-      --tt-accent-text: #ff5c54;  /* small text: 4.85:1 on surface */
-      --tt-accent-dim:  rgba(255, 0, 0, 0.35);
-      --tt-red:         #ff0000;  /* brand red                */
-      --tt-red-hover:   #cc0000;
-      --tt-focus:       #ffffff;  /* Leanback focus is a light fill */
-      --tt-focus-fg:    #0f0f0f;
-      --tt-radius:      12px;
-      --tt-radius-pill: 999px;
-      --tt-font: 'YouTube Sans', Roboto, 'Segoe UI', Arial, sans-serif;
-    }
-
     #tizentube-overlay-container {
       position: fixed;
       top: 0;
@@ -482,6 +459,7 @@
     }
 
     injectStyles() {
+      ensureThemeTokens();
       const style = document.createElement('style');
       style.id = 'tizentube-overlay-styles';
       style.textContent = OVERLAY_CSS;

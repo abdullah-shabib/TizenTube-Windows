@@ -20,6 +20,7 @@
 
 (function () {
   const { ipcRenderer } = require('electron');
+  const { ensureThemeTokens } = require('./theme.js');
 
   const OVERLAY_DESIGN_WIDTH = 1920;
 
@@ -29,17 +30,17 @@
       top: 36px;
       right: 36px;
       z-index: 2147483646;
-      background: rgba(18, 18, 18, 0.92);
-      border: 1px solid #333333;
+      background: var(--tt-scrim);
+      border: 1px solid var(--tt-border);
       border-radius: 12px;
       padding: 12px 20px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      box-shadow: var(--tt-shadow);
       backdrop-filter: blur(12px);
       display: flex;
       align-items: center;
       gap: 16px;
-      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      color: #FFFFFF;
+      font-family: var(--tt-font);
+      color: var(--tt-text);
       pointer-events: none;
       opacity: 0;
       transform: translateY(-8px);
@@ -62,32 +63,32 @@
     .tt-hud-bar-container {
       width: 140px;
       height: 8px;
-      background: #2a2a2a;
+      background: var(--tt-surface-3);
       border-radius: 4px;
       overflow: hidden;
     }
 
     .tt-hud-bar-fill {
       height: 100%;
-      background: var(--tt-accent, #ff0000);
+      background: var(--tt-accent);
       border-radius: 4px;
       transition: width 0.08s ease-out;
     }
 
     .tt-hud-bar-fill.muted {
-      background: #777777;
+      background: var(--tt-text-3);
     }
 
     .tt-hud-text {
       font-size: 15px;
       font-weight: 600;
-      color: var(--tt-accent-text, #ff5c54);
+      color: var(--tt-accent-text);
       min-width: 50px;
       text-align: right;
     }
 
     .tt-hud-text.muted {
-      color: #aaaaaa;
+      color: var(--tt-text-2);
     }
   `;
 
