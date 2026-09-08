@@ -57,7 +57,10 @@ const DEFAULT_CONFIG = {
     }
   },
   display: {
-    fullscreen: false,
+    // Fullscreen by default: YouTube picks its stream from the player's size in
+    // CSS pixels, so a windowed launch caps playback well below 4K. The startup
+    // banner in overlay.js covers people who switch to windowed.
+    fullscreen: true,
     autoHideCursor: true,
     cursorHideDelayMs: 3000,
     preventDisplaySleep: true

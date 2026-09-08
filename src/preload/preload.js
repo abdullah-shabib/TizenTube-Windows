@@ -57,38 +57,28 @@ if (typeof window !== 'undefined') {
       try { Object.defineProperty(document, prop, desc); } catch (e) {}
     }
 
-    // 2. Prevent property-based handlers from receiving blur or visibility changes
-    try {
-      Object.defineProperty(window, 'onblur', {
-        get: () => null,
-        set: () => {},
-        configurable: true
-      });
-      Object.defineProperty(document, 'onvisibilitychange', {
-        get: () => null,
-        set: () => {},
-        configurable: true
-      });
-    } catch (e) {}
-
-    // 3. Intercept blur, focusout, pagehide, and visibilitychange events in the capture phase
-    const blockedEvents = [
-      'visibilitychange',
-      'webkitvisibilitychange',
-      'blur',
-      'focusout',
-      'pagehide'
-    ];
-
+    // 2. Swallow the page-lifecycle events YouTube pauses on, in the capture
+    // phase so its own listeners never run.
+    //
+    // Deliberately NOT blocked: focusout, and blur on anything but window.
+    // Those drive focus movement inside the Leanback UI, and killing them with
+    // stopImmediatePropagation breaks D-pad navigation and form fields. Only
+    // whole-window blur is suppressed, which is what pauses playback.
     const blockHandler = (e) => {
       e.stopImmediatePropagation();
       e.stopPropagation();
     };
 
-    for (const evt of blockedEvents) {
+    for (const evt of ['visibilitychange', 'webkitvisibilitychange', 'pagehide']) {
       window.addEventListener(evt, blockHandler, true);
       document.addEventListener(evt, blockHandler, true);
     }
+
+    // window.blur only - a blur event whose target is the window means the app
+    // lost focus, not that focus moved between elements in the page.
+    window.addEventListener('blur', (e) => {
+      if (e.target === window || e.target === document) blockHandler(e);
+    }, true);
   } catch (err) {
     console.error('[TizenTube Preload] Failed to configure background playback protection:', err);
   }

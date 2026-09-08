@@ -857,6 +857,11 @@
         this.handleControllerAction(e.detail ? e.detail.action : null);
       });
 
+      // The startup banner is not part of the modal, so it never receives
+      // overlay-key events. Let Back/B dismiss it rather than leaving a control
+      // on screen that only a mouse can clear.
+      window.addEventListener('tizentube-dismiss-prompt', () => this.hideFullscreenPrompt());
+
       // Hook Gamepad diagnostics to update visualizer
       if (window.TizenTubeGamepadManager) {
         window.TizenTubeGamepadManager.onStateChange((gamepad) => {
@@ -932,7 +937,6 @@
       const prompt = document.createElement('div');
       prompt.id = 'tt-fullscreen-prompt';
       prompt.innerHTML = this.getSafeHTML(`
-        <span class="tt-fs-icon">⛶</span>
         <span class="tt-fs-text">Press <strong>F11</strong> or <strong>Select (Back/View)</strong> for Fullscreen</span>
         <button class="tt-fs-btn" id="tt-fs-btn-enter">Enter Fullscreen</button>
         <button class="tt-fs-close" id="tt-fs-btn-dismiss" title="Dismiss">&times;</button>

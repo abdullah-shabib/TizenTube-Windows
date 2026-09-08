@@ -299,12 +299,6 @@ function createWindow() {
   // Load YouTube on TV
   mainWindow.loadURL('https://www.youtube.com/tv');
 
-  mainWindow.on('close', () => {
-    if (mainWindow) {
-      setFullscreenState(mainWindow.isFullScreen());
-    }
-  });
-
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -319,9 +313,7 @@ function createWindow() {
     if (input.type === 'keyDown') {
       if (input.key === 'F11') {
         event.preventDefault();
-        const nextState = !mainWindow.isFullScreen();
-        mainWindow.setFullScreen(nextState);
-        setFullscreenState(nextState);
+        mainWindow.setFullScreen(!mainWindow.isFullScreen());
       } else if (input.key === 'F2') {
         event.preventDefault();
         mainWindow.webContents.send('toggle-overlay');
@@ -429,7 +421,6 @@ ipcMain.handle('toggle-fullscreen', () => {
   if (mainWindow) {
     const nextState = !mainWindow.isFullScreen();
     mainWindow.setFullScreen(nextState);
-    setFullscreenState(nextState);
     return nextState;
   }
   return false;

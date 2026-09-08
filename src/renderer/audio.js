@@ -99,6 +99,12 @@
     }
   }
 
+  const HUD_ICONS = {
+    muted: '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.6 3l2.7-2.7-1.1-1.1L15.5 11l-2.7-2.7-1.1 1.1L14.4 12l-2.7 2.7 1.1 1.1 2.7-2.7 2.7 2.7 1.1-1.1L16.6 12z"/></svg>',
+    low:   '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm12 3a3.5 3.5 0 0 0-2-3.2v6.4A3.5 3.5 0 0 0 15 12z"/></svg>',
+    high:  '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm12 3a3.5 3.5 0 0 0-2-3.2v6.4A3.5 3.5 0 0 0 15 12zm-2-7v2.1a5 5 0 0 1 0 9.8V19a7 7 0 0 0 0-14z"/></svg>'
+  };
+
   class AudioManager {
     constructor() {
       this.volume = 1.0;
@@ -107,6 +113,7 @@
       this.hudTimer = null;
       this.listeners = [];
       this.persistTimer = null;
+      this.applyingInternally = false;
     }
 
     init(config) {
@@ -131,6 +138,22 @@
       console.log('[TizenTube Audio] Subsystem initialized at volume:', Math.round(this.volume * 100) + '%', 'muted:', this.muted);
     }
 
+    // Mirrors overlay.js: CSP is stripped, but a Trusted Types policy may still
+    // be active, so route markup through one if the page has it.
+    getSafeHTML(htmlString) {
+      try {
+        if (window.trustedTypes && window.trustedTypes.createPolicy) {
+          if (!window._ttAudioPolicy) {
+            window._ttAudioPolicy = window.trustedTypes.createPolicy('tizentube-audio', {
+              createHTML: (str) => str
+            });
+          }
+          return window._ttAudioPolicy.createHTML(htmlString);
+        }
+      } catch (e) {}
+      return htmlString;
+    }
+
     injectStyles() {
       if (document.getElementById('tizentube-audio-styles')) return;
       const style = document.createElement('style');
@@ -148,7 +171,7 @@
       const hud = document.createElement('div');
       hud.id = 'tizentube-volume-hud';
       hud.innerHTML = `
-        <span class="tt-hud-icon" id="tt-hud-icon">🔊</span>
+        <span class="tt-hud-icon" id="tt-hud-icon"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm12 3a3.5 3.5 0 0 0-2-3.2v6.4A3.5 3.5 0 0 0 15 12zm-2-7v2.1a5 5 0 0 1 0 9.8V19a7 7 0 0 0 0-14z"/></svg></span>
         <div class="tt-hud-bar-container">
           <div class="tt-hud-bar-fill" id="tt-hud-bar-fill" style="width: 100%;"></div>
         </div>
@@ -186,7 +209,7 @@
       const pct = Math.round(this.volume * 100);
 
       if (this.muted || pct === 0) {
-        if (iconEl) iconEl.textContent = '🔇';
+        if (iconEl) iconEl.innerHTML = this.getSafeHTML(HUD_ICONS.muted);
         if (barEl) {
           barEl.style.width = pct + '%';
           barEl.classList.add('muted');
@@ -196,7 +219,7 @@
           textEl.classList.add('muted');
         }
       } else {
-        if (iconEl) iconEl.textContent = pct < 50 ? '🔉' : '🔊';
+        if (iconEl) iconEl.innerHTML = this.getSafeHTML(pct < 50 ? HUD_ICONS.low : HUD_ICONS.high);
         if (barEl) {
           barEl.style.width = pct + '%';
           barEl.classList.remove('muted');
@@ -219,10 +242,14 @@
 
     applyToElement(media) {
       if (!media) return;
+      this.applyingInternally = true;
       try {
         media.volume = this.volume;
         media.muted = this.muted;
-      } catch (e) {}
+      } catch (e) {
+      } finally {
+        this.applyingInternally = false;
+      }
     }
 
     applyToAll() {
@@ -232,39 +259,37 @@
       }
     }
 
+    // Media events do not bubble, but they do capture, so a single listener on
+    // the document catches every <video>/<audio> the page creates. That avoids
+    // both patching HTMLMediaElement.prototype and running a MutationObserver
+    // over the whole subtree of a heavy SPA.
     hookMediaElements() {
-      const self = this;
-
-      // Ensure newly playing media immediately adopts application volume
-      const origPlay = HTMLMediaElement.prototype.play;
-      HTMLMediaElement.prototype.play = function () {
-        self.applyToElement(this);
-        return origPlay.apply(this, arguments);
+      const adopt = (e) => {
+        const media = e.target;
+        if (media && (media.tagName === 'VIDEO' || media.tagName === 'AUDIO')) {
+          this.applyToElement(media);
+        }
       };
 
-      // Watch for dynamically created <video> and <audio> elements
-      const observer = new MutationObserver((mutations) => {
-        for (const mutation of mutations) {
-          for (const node of mutation.addedNodes) {
-            if (node.nodeType !== Node.ELEMENT_NODE) continue;
-            if (node.tagName === 'VIDEO' || node.tagName === 'AUDIO') {
-              self.applyToElement(node);
-            } else if (node.querySelectorAll) {
-              const nested = node.querySelectorAll('video, audio');
-              for (const media of nested) {
-                self.applyToElement(media);
-              }
-            }
-          }
-        }
-      });
+      for (const evt of ['loadedmetadata', 'loadstart', 'play']) {
+        document.addEventListener(evt, adopt, true);
+      }
 
-      whenDomReady(() => {
-        observer.observe(document.body || document.documentElement, {
-          childList: true,
-          subtree: true
-        });
-      });
+      // If something else changes the volume - YouTube's own player UI, or the
+      // user - follow it instead of fighting it on the next play().
+      document.addEventListener('volumechange', (e) => {
+        const media = e.target;
+        if (this.applyingInternally) return;
+        if (!media || (media.tagName !== 'VIDEO' && media.tagName !== 'AUDIO')) return;
+
+        const external = Math.max(0, Math.min(1, Math.round(media.volume * 100) / 100));
+        if (external === this.volume && media.muted === this.muted) return;
+
+        this.volume = external;
+        this.muted = !!media.muted;
+        this.notifyListeners();
+        this.schedulePersist();
+      }, true);
     }
 
     setupIPC() {
