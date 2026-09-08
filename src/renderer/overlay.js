@@ -319,6 +319,80 @@
       text-align: center;
       padding-top: 4px;
     }
+
+    /* Fullscreen startup prompt */
+    #tt-fullscreen-prompt {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-12px);
+      z-index: 2147483645;
+      background: rgba(18, 18, 18, 0.94);
+      border: 1px solid #3ea6ff;
+      border-radius: 30px;
+      padding: 8px 18px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.8), 0 0 14px rgba(62, 166, 255, 0.35);
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: #FFFFFF;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      user-select: none;
+    }
+
+    #tt-fullscreen-prompt.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+    }
+
+    .tt-fs-icon {
+      font-size: 16px;
+      color: #3ea6ff;
+      line-height: 1;
+    }
+
+    .tt-fs-text {
+      font-size: 13px;
+      color: #e0e0e0;
+    }
+    .tt-fs-text strong {
+      color: #3ea6ff;
+      font-weight: 600;
+    }
+
+    .tt-fs-btn {
+      background: #3ea6ff;
+      color: #000000;
+      border: none;
+      border-radius: 14px;
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .tt-fs-btn:hover {
+      background: #65b8ff;
+    }
+
+    .tt-fs-close {
+      background: transparent;
+      border: none;
+      color: #888888;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+      transition: color 0.15s;
+    }
+    .tt-fs-close:hover {
+      color: #ffffff;
+    }
   `;
 
   // Pixels the visualiser dot moves from centre at full stick deflection.
@@ -353,6 +427,8 @@
       this.buttonPills = new Map();
       this.focusables = [];
       this.focusIndex = 0;
+      this.fsPromptEl = null;
+      this.fsPromptTimer = null;
       this.init();
     }
 
@@ -587,6 +663,7 @@
 
       this.applyViewportScale();
       window.addEventListener('resize', () => this.applyViewportScale());
+      this.createFullscreenPrompt();
     }
 
     setValue(id, value) {
@@ -632,6 +709,15 @@
       this.setChecked('tt-toggle-autohide', display.autoHideCursor);
       this.setChecked('tt-toggle-sleep', display.preventDisplaySleep);
       this.setChecked('tt-toggle-autoupdate', tizentube.autoUpdateScript);
+
+      // If started in windowed mode, show startup prompt
+      if (!display.fullscreen) {
+        setTimeout(() => {
+          if (this.config && !this.config.display.fullscreen) {
+            this.showFullscreenPrompt(8000);
+          }
+        }, 800);
+      }
     }
 
     // The dot travels STICK_TRAVEL_PX from the centre at full deflection, so a
@@ -760,6 +846,9 @@
         if (this.config) this.config.display.fullscreen = isFullscreen;
         const el = document.getElementById('tt-toggle-fullscreen');
         if (el) el.checked = isFullscreen;
+        if (isFullscreen) {
+          this.hideFullscreenPrompt();
+        }
       });
 
       // Controller input when overlay is open
@@ -825,9 +914,73 @@
     }
 
     applyViewportScale() {
-      if (!this.container) return;
       const scale = Math.min(3, Math.max(1, window.innerWidth / OVERLAY_DESIGN_WIDTH));
-      this.container.style.zoom = scale;
+      if (this.container) {
+        this.container.style.zoom = scale;
+      }
+      if (this.fsPromptEl) {
+        this.fsPromptEl.style.zoom = scale;
+      }
+    }
+
+    createFullscreenPrompt() {
+      if (document.getElementById('tt-fullscreen-prompt')) {
+        this.fsPromptEl = document.getElementById('tt-fullscreen-prompt');
+        return;
+      }
+
+      const prompt = document.createElement('div');
+      prompt.id = 'tt-fullscreen-prompt';
+      prompt.innerHTML = this.getSafeHTML(`
+        <span class="tt-fs-icon">⛶</span>
+        <span class="tt-fs-text">Press <strong>F11</strong> or <strong>Select (Back/View)</strong> for Fullscreen</span>
+        <button class="tt-fs-btn" id="tt-fs-btn-enter">Enter Fullscreen</button>
+        <button class="tt-fs-close" id="tt-fs-btn-dismiss" title="Dismiss">&times;</button>
+      `);
+      (document.body || document.documentElement).appendChild(prompt);
+      this.fsPromptEl = prompt;
+
+      const enterBtn = prompt.querySelector('#tt-fs-btn-enter');
+      if (enterBtn) {
+        enterBtn.addEventListener('click', () => {
+          ipcRenderer.invoke('toggle-fullscreen').catch(() => {});
+          this.hideFullscreenPrompt();
+        });
+      }
+
+      const closeBtn = prompt.querySelector('#tt-fs-btn-dismiss');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+          this.hideFullscreenPrompt();
+        });
+      }
+    }
+
+    showFullscreenPrompt(autoDismissMs = 8000) {
+      if (!this.fsPromptEl) {
+        this.createFullscreenPrompt();
+      }
+      if (!this.fsPromptEl) return;
+
+      if (!this.fsPromptEl.isConnected) {
+        (document.body || document.documentElement).appendChild(this.fsPromptEl);
+      }
+      this.applyViewportScale();
+      this.fsPromptEl.classList.add('visible');
+
+      clearTimeout(this.fsPromptTimer);
+      if (autoDismissMs > 0) {
+        this.fsPromptTimer = setTimeout(() => {
+          this.hideFullscreenPrompt();
+        }, autoDismissMs);
+      }
+    }
+
+    hideFullscreenPrompt() {
+      clearTimeout(this.fsPromptTimer);
+      if (this.fsPromptEl) {
+        this.fsPromptEl.classList.remove('visible');
+      }
     }
 
     // Move the controller focus ring to the given index, wrapping around.

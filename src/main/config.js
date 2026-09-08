@@ -57,7 +57,7 @@ const DEFAULT_CONFIG = {
     }
   },
   display: {
-    fullscreen: true,
+    fullscreen: false,
     autoHideCursor: true,
     cursorHideDelayMs: 3000,
     preventDisplaySleep: true
