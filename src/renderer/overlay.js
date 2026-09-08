@@ -352,7 +352,7 @@
       position: fixed;
       top: 24px;
       left: 50%;
-      transform: translateX(-50%) translateY(-12px);
+      transform: translateX(-50%) translateY(-12px) scale(var(--tt-prompt-scale, 1));
       z-index: 2147483645;
       background: var(--tt-surface);
       border: 1px solid var(--tt-accent);
@@ -949,13 +949,33 @@
       }
     }
 
+    // The app renders at the panel's native resolution, so on a 4K screen the
+    // overlay has to scale up or it sits tiny in the middle.
+    //
+    // Zoom must go on the panels, never on their wrappers. It multiplies an
+    // element's rendered box, so zooming the 100vw/100vh container made it
+    // twice the width of the screen and pushed the centred modal off the right
+    // edge. The banner had the same problem through its left:50% centring.
     applyViewportScale() {
       const scale = Math.min(3, Math.max(1, window.innerWidth / OVERLAY_DESIGN_WIDTH));
+
       if (this.container) {
-        this.container.style.zoom = scale;
+        this.container.style.zoom = '';
+        const modal = this.container.querySelector('.tt-modal');
+        if (modal) {
+          modal.style.zoom = scale === 1 ? '' : scale;
+          // vh/vw resolve against the viewport before zoom multiplies them, so
+          // divide through to keep the modal inside the screen.
+          modal.style.maxHeight = (88 / scale) + 'vh';
+          modal.style.maxWidth = (92 / scale) + 'vw';
+        }
       }
+
       if (this.fsPromptEl) {
-        this.fsPromptEl.style.zoom = scale;
+        // Scaled through transform instead: the banner is centred with
+        // left:50%, which zoom would shift off-centre.
+        this.fsPromptEl.style.zoom = '';
+        this.fsPromptEl.style.setProperty('--tt-prompt-scale', scale);
       }
     }
 
