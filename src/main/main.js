@@ -24,12 +24,14 @@ const nativeVibration = new NativeVibrationManager();
 
 // Disable Blink features that block userscripts and dynamic code
 app.commandLine.appendSwitch('disable-blink-features', 'TrustedTypes,TrustedTypesEnforcement');
-app.commandLine.appendSwitch('disable-features', 'TrustedTypes');
+app.commandLine.appendSwitch('disable-features', 'TrustedTypes,CalculateNativeWinOcclusion');
 
 // Optimal TV video playback and input performance switches
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('disable-background-timer-throttling');
+app.commandLine.appendSwitch('disable-background-media-suspend');
 // VaapiVideoDecoder is Linux-only and does nothing here; on Windows the VP9/AV1
 // hardware path is D3D11, which is already on by default.
 app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport,CanvasOopRasterization');

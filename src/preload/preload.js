@@ -37,6 +37,63 @@ if (typeof window !== 'undefined') {
   }
 }
 
+// Prevent YouTube TV from pausing playback when the window blurs or is hidden
+(function preventBackgroundPause() {
+  if (typeof window === 'undefined') return;
+
+  try {
+    // 1. Spoof visibility properties on Document prototype and document instance
+    const docProto = Document.prototype;
+    const visibilityProps = {
+      visibilityState: { get: () => 'visible', configurable: true },
+      hidden: { get: () => false, configurable: true },
+      webkitVisibilityState: { get: () => 'visible', configurable: true },
+      webkitHidden: { get: () => false, configurable: true },
+      hasFocus: { value: () => true, writable: true, configurable: true }
+    };
+
+    for (const [prop, desc] of Object.entries(visibilityProps)) {
+      try { Object.defineProperty(docProto, prop, desc); } catch (e) {}
+      try { Object.defineProperty(document, prop, desc); } catch (e) {}
+    }
+
+    // 2. Prevent property-based handlers from receiving blur or visibility changes
+    try {
+      Object.defineProperty(window, 'onblur', {
+        get: () => null,
+        set: () => {},
+        configurable: true
+      });
+      Object.defineProperty(document, 'onvisibilitychange', {
+        get: () => null,
+        set: () => {},
+        configurable: true
+      });
+    } catch (e) {}
+
+    // 3. Intercept blur, focusout, pagehide, and visibilitychange events in the capture phase
+    const blockedEvents = [
+      'visibilitychange',
+      'webkitvisibilitychange',
+      'blur',
+      'focusout',
+      'pagehide'
+    ];
+
+    const blockHandler = (e) => {
+      e.stopImmediatePropagation();
+      e.stopPropagation();
+    };
+
+    for (const evt of blockedEvents) {
+      window.addEventListener(evt, blockHandler, true);
+      document.addEventListener(evt, blockHandler, true);
+    }
+  } catch (err) {
+    console.error('[TizenTube Preload] Failed to configure background playback protection:', err);
+  }
+})();
+
 // Inject the active TizenTube userscript into the webpage's DOM
 async function injectTizenTubeScript() {
   try {
