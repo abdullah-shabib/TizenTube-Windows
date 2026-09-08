@@ -38,6 +38,7 @@ const SOURCES = [
   'src/preload/preload.js',
   'src/renderer/controller.js',
   'src/renderer/overlay.js',
+  'src/renderer/audio.js',
   'scripts/pin-script.js',
   'scripts/verify-pin.js'
 ];

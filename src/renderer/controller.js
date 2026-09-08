@@ -231,6 +231,21 @@
         return;
       }
 
+      if (action === 'VolumeUp') {
+        window.dispatchEvent(new CustomEvent('tizentube-volume-change', { detail: { delta: 0.05 } }));
+        return;
+      }
+
+      if (action === 'VolumeDown') {
+        window.dispatchEvent(new CustomEvent('tizentube-volume-change', { detail: { delta: -0.05 } }));
+        return;
+      }
+
+      if (action === 'VolumeMute') {
+        window.dispatchEvent(new CustomEvent('tizentube-volume-toggle-mute'));
+        return;
+      }
+
       // While the overlay is open the controller drives the overlay instead of
       // the YouTube page underneath it.
       if (this.overlayOpen) {

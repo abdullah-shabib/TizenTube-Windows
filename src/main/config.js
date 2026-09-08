@@ -59,6 +59,10 @@ const DEFAULT_CONFIG = {
     cursorHideDelayMs: 3000,
     preventDisplaySleep: true
   },
+  audio: {
+    volume: 1.0,
+    muted: false
+  },
   tizentube: {
     injectScript: true,
     autoUpdateScript: true,

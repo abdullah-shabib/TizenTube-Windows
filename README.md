@@ -44,10 +44,11 @@ npm start
 | Back/View | Toggle fullscreen |
 
 The D-pad and stick both navigate, with a configurable repeat rate. Everything
-except the D-pad can be remapped in `config.json`.
+except the D-pad can be remapped in `config.json` (including `VolumeUp`, `VolumeDown`,
+and `VolumeMute`).
 
-Keyboard works too: arrows, Enter, Esc, Space, plus `F11` fullscreen, `F2` overlay
-and `F5` reload.
+Keyboard works too: arrows, Enter, Esc, Space, `F11` fullscreen, `F2` overlay, `F5` reload,
+and volume controls (`Ctrl+Up` / `Ctrl+Down`, `Ctrl+M` mute, and media keys).
 
 The settings overlay (Start, or `F2`) has a live controller tester — useful for
 checking a pad is seen at all, and for tuning stick deadzone without guessing.
@@ -98,6 +99,7 @@ reachable from the overlay; the rest is worth editing by hand:
 - `controller.bindings` — per-button actions
 - `controller.vibration` — rumble on button presses and navigation
 - `display.autoHideCursor`, `display.preventDisplaySleep`
+- `audio.volume`, `audio.muted` — playback volume level (`0.0`–`1.0`) and mute state
 - `system.userAgentProfile` — see above
 
 ## Userscript pinning

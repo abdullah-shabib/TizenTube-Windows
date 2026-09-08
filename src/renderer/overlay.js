@@ -331,6 +331,8 @@
 
   // Controls the D-Pad walks through, in visual order.
   const FOCUS_ORDER = [
+    { id: 'tt-input-volume', type: 'range' },
+    { id: 'tt-toggle-mute', type: 'checkbox' },
     { id: 'tt-input-deadzone', type: 'range' },
     { id: 'tt-input-repeat', type: 'range' },
     { id: 'tt-toggle-vibration', type: 'checkbox' },
@@ -479,7 +481,34 @@
             </div>
           </div>
 
-          <!-- Section 3: Display & Features -->
+          <!-- Section 3: Audio Settings -->
+          <div class="tt-section">
+            <div class="tt-section-title">Audio</div>
+
+            <div class="tt-control-row">
+              <div>
+                <div class="tt-label">Application Volume</div>
+                <div class="tt-sublabel">Adjust playback volume of TizenTube.</div>
+              </div>
+              <div class="tt-slider-group">
+                <input type="range" id="tt-input-volume" min="0" max="100" step="5" value="100">
+                <span class="tt-value-display" id="tt-val-volume">100%</span>
+              </div>
+            </div>
+
+            <div class="tt-control-row">
+              <div>
+                <div class="tt-label">Mute Audio</div>
+                <div class="tt-sublabel">Mute all sound output from the application.</div>
+              </div>
+              <label class="tt-switch">
+                <input type="checkbox" id="tt-toggle-mute">
+                <span class="tt-switch-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Section 4: Display & Features -->
           <div class="tt-section">
             <div class="tt-section-title">Display & Application</div>
 
@@ -579,6 +608,13 @@
 
       const dz = controller.deadzone || 0.25;
       const rp = controller.repeatIntervalMs || 110;
+      const audio = this.config.audio || {};
+      const vol = typeof audio.volume === 'number' ? Math.round(audio.volume * 100) : 100;
+      const muted = !!audio.muted;
+
+      this.setValue('tt-input-volume', vol);
+      this.setText('tt-val-volume', vol + '%');
+      this.setChecked('tt-toggle-mute', muted);
 
       this.setValue('tt-input-deadzone', dz);
       this.setText('tt-val-deadzone', dz.toFixed(2));
@@ -618,6 +654,17 @@
 
     setupListeners() {
       // Sliders
+      this.on('tt-input-volume', 'input', (e) => {
+        const val = parseInt(e.target.value, 10);
+        this.setText('tt-val-volume', val + '%');
+        if (!this.config) return;
+        this.config.audio = this.config.audio || {};
+        this.config.audio.volume = val / 100;
+        if (window.TizenTubeAudioManager) {
+          window.TizenTubeAudioManager.setVolume(val / 100, true, false);
+        }
+      });
+
       this.on('tt-input-deadzone', 'input', (e) => {
         const val = parseFloat(e.target.value);
         this.setText('tt-val-deadzone', val.toFixed(2));
@@ -645,6 +692,14 @@
           window.TizenTubeGamepadManager.triggerHaptic('test', 0);
         }
       });
+      this.on('tt-toggle-mute', 'change', (e) => {
+        if (!this.config) return;
+        this.config.audio = this.config.audio || {};
+        this.config.audio.muted = e.target.checked;
+        if (window.TizenTubeAudioManager) {
+          window.TizenTubeAudioManager.setMuted(e.target.checked, true, false);
+        }
+      });
       this.on('tt-toggle-fullscreen', 'change', (e) => {
         if (this.config) this.config.display.fullscreen = e.target.checked;
       });
@@ -668,6 +723,10 @@
           try {
             this.config = await ipcRenderer.invoke('save-config', this.config);
             this.pushConfigToController();
+            if (window.TizenTubeAudioManager && this.config.audio) {
+              window.TizenTubeAudioManager.setVolume(this.config.audio.volume, false, false);
+              window.TizenTubeAudioManager.setMuted(this.config.audio.muted, false, false);
+            }
           } catch (err) {
             console.error('[TizenTube Overlay] Failed to save config:', err);
           }
@@ -710,6 +769,21 @@
         window.TizenTubeGamepadManager.onStateChange((gamepad) => {
           if (!this.isVisible) return;
           this.updateVisualizer(gamepad);
+        });
+      }
+
+      // Hook Audio manager to sync volume / mute changes
+      if (window.TizenTubeAudioManager) {
+        window.TizenTubeAudioManager.onStateChange(({ volume, muted }) => {
+          const volPct = Math.round(volume * 100);
+          this.setValue('tt-input-volume', volPct);
+          this.setText('tt-val-volume', volPct + '%');
+          this.setChecked('tt-toggle-mute', muted);
+          if (this.config) {
+            this.config.audio = this.config.audio || {};
+            this.config.audio.volume = volume;
+            this.config.audio.muted = muted;
+          }
         });
       }
     }

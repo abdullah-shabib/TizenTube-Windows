@@ -285,6 +285,9 @@ function createWindow() {
 
   Menu.setApplicationMenu(null);
 
+  mainWindow.show();
+  mainWindow.focus();
+
   // The renderer runs with Node integration and no web security, so nothing
   // may open a second window onto an arbitrary site with those privileges.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -304,7 +307,7 @@ function createWindow() {
   mainWindow.on('enter-full-screen', () => setFullscreenState(true));
   mainWindow.on('leave-full-screen', () => setFullscreenState(false));
 
-  // Handle F11 fullscreen toggle, F2 overlay toggle, and F5 reload
+  // Handle F11 fullscreen toggle, F2 overlay toggle, F5 reload, and volume shortcuts
   mainWindow.webContents.on('before-input-event', (event, input) => {
     if (input.type === 'keyDown') {
       if (input.key === 'F11') {
@@ -316,6 +319,24 @@ function createWindow() {
       } else if (input.key === 'F5') {
         event.preventDefault();
         mainWindow.webContents.reload();
+      } else if (input.key === 'AudioVolumeUp' || input.key === 'VolumeUp') {
+        event.preventDefault();
+        mainWindow.webContents.send('volume-adjust', 0.05);
+      } else if (input.key === 'AudioVolumeDown' || input.key === 'VolumeDown') {
+        event.preventDefault();
+        mainWindow.webContents.send('volume-adjust', -0.05);
+      } else if (input.key === 'AudioVolumeMute' || input.key === 'VolumeMute') {
+        event.preventDefault();
+        mainWindow.webContents.send('volume-toggle-mute');
+      } else if (input.control && input.key === 'ArrowUp') {
+        event.preventDefault();
+        mainWindow.webContents.send('volume-adjust', 0.05);
+      } else if (input.control && input.key === 'ArrowDown') {
+        event.preventDefault();
+        mainWindow.webContents.send('volume-adjust', -0.05);
+      } else if (input.control && (input.key === 'm' || input.key === 'M')) {
+        event.preventDefault();
+        mainWindow.webContents.send('volume-toggle-mute');
       }
     }
   });
@@ -361,6 +382,15 @@ ipcMain.handle('save-config', (event, newConfig) => {
     }
   }
   return updated;
+});
+
+ipcMain.handle('set-audio-settings', (event, { volume, muted }) => {
+  const cfg = configManager.get();
+  cfg.audio = cfg.audio || {};
+  if (typeof volume === 'number') cfg.audio.volume = Math.max(0, Math.min(1, volume));
+  if (typeof muted === 'boolean') cfg.audio.muted = muted;
+  configManager.set(cfg);
+  return cfg.audio;
 });
 
 ipcMain.handle('get-tizentube-script', () => {

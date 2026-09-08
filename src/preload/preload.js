@@ -135,7 +135,18 @@ async function injectTizenTubeScript() {
     console.error('[TizenTube Preload] Failed to load controller.js:', err);
   }
 
-  // 3. Load In-App Settings Overlay directly via Node require
+  // 3. Load Audio Subsystem directly via Node require
+  try {
+    require('../renderer/audio.js');
+    if (window.TizenTubeAudioManager) {
+      window.TizenTubeAudioManager.init(config || {});
+    }
+    console.log('[TizenTube Preload] Audio subsystem loaded successfully.');
+  } catch (err) {
+    console.error('[TizenTube Preload] Failed to load audio.js:', err);
+  }
+
+  // 4. Load In-App Settings Overlay directly via Node require
   function initOverlay() {
     try {
       require('../renderer/overlay.js');
