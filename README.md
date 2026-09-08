@@ -104,7 +104,27 @@ reachable from the overlay; the rest is worth editing by hand:
 - `controller.vibration` — rumble on button presses and navigation
 - `display.autoHideCursor`, `display.preventDisplaySleep`
 - `audio.volume`, `audio.muted` — playback volume level (`0.0`–`1.0`) and mute state
+- `updates.autoCheck` — look for a newer app version on startup
 - `system.userAgentProfile` — see above
+
+## Updating
+
+Two separate things update, and they work differently.
+
+**The app** checks this project's GitHub releases on startup and downloads a
+newer build in the background, then offers to restart. Choosing *Later* installs
+it the next time you quit. Turn it off with `updates.autoCheck`, or from the
+overlay.
+
+This only works for the **installed** build. A portable exe cannot replace
+itself while running, and a dev checkout has no release to compare against; both
+skip the check and say so in the log. The installers are not code-signed, so
+Windows may ask you to confirm the update.
+
+**The bundled TizenTube userscript** does not update at runtime. It is pinned by
+SHA-256 and ships inside the build, so it changes only when a new release is cut
+- see below. `autoUpdateScript` controls whether a mismatched bundle may be
+re-fetched, not whether the pin moves on its own.
 
 ## Userscript pinning
 

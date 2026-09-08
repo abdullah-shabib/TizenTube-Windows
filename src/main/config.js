@@ -69,6 +69,12 @@ const DEFAULT_CONFIG = {
     volume: 1.0,
     muted: false
   },
+  updates: {
+    // Checks this project's GitHub releases on startup. Only meaningful for
+    // the installed build: a portable exe cannot replace itself, and a dev
+    // checkout has nothing to compare against.
+    autoCheck: true
+  },
   tizentube: {
     injectScript: true,
     autoUpdateScript: true,

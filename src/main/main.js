@@ -19,6 +19,7 @@ const https = require('https');
 const crypto = require('crypto');
 const configManager = require('./config');
 const NativeVibrationManager = require('./native-vibration');
+const { checkForUpdates, updatesSupported } = require('./updater');
 
 const nativeVibration = new NativeVibrationManager();
 
@@ -296,6 +297,14 @@ function createWindow() {
     return { action: 'deny' };
   });
 
+  // Check for an app update once the window is up, so a slow or failing
+  // network never delays startup.
+  mainWindow.webContents.once('did-finish-load', () => {
+    setTimeout(() => {
+      checkForUpdates(() => mainWindow, configManager.get());
+    }, 4000);
+  });
+
   // Load YouTube on TV
   mainWindow.loadURL('https://www.youtube.com/tv');
 
@@ -399,6 +408,12 @@ ipcMain.handle('set-audio-settings', (event, payload = {}) => {
   configManager.set(cfg);
   return cfg.audio;
 });
+
+ipcMain.handle('check-for-updates', () => {
+  return checkForUpdates(() => mainWindow, configManager.get(), { silent: false });
+});
+
+ipcMain.handle('updates-supported', () => updatesSupported());
 
 ipcMain.handle('get-tizentube-script', () => {
   const scriptPath = getActiveScriptPath(configManager.get());

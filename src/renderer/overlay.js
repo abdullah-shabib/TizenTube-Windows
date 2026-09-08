@@ -431,6 +431,7 @@
     { id: 'tt-toggle-autohide', type: 'checkbox' },
     { id: 'tt-toggle-sleep', type: 'checkbox' },
     { id: 'tt-toggle-autoupdate', type: 'checkbox' },
+    { id: 'tt-toggle-appupdate', type: 'checkbox' },
     { id: 'tt-btn-save', type: 'button' },
     { id: 'tt-btn-reload', type: 'button' },
     { id: 'tt-btn-exit', type: 'button' }
@@ -645,6 +646,17 @@
 
             <div class="tt-control-row">
               <div>
+                <div class="tt-label">Check for App Updates</div>
+                <div class="tt-sublabel">Looks for a newer TizenTube for Windows on startup. Installed builds only.</div>
+              </div>
+              <label class="tt-switch">
+                <input type="checkbox" id="tt-toggle-appupdate">
+                <span class="tt-switch-slider"></span>
+              </label>
+            </div>
+
+            <div class="tt-control-row">
+              <div>
                 <div class="tt-label">Auto-Update TizenTube Script</div>
                 <div class="tt-sublabel">Automatically checks for the newest ad-block & SponsorBlock scripts.</div>
               </div>
@@ -733,6 +745,7 @@
       this.setChecked('tt-toggle-autohide', display.autoHideCursor);
       this.setChecked('tt-toggle-sleep', display.preventDisplaySleep);
       this.setChecked('tt-toggle-autoupdate', tizentube.autoUpdateScript);
+      this.setChecked('tt-toggle-appupdate', (this.config.updates || {}).autoCheck !== false);
 
       // If started in windowed mode, show startup prompt
       if (!display.fullscreen) {
@@ -825,6 +838,11 @@
       });
       this.on('tt-toggle-sleep', 'change', (e) => {
         if (this.config) this.config.display.preventDisplaySleep = e.target.checked;
+      });
+      this.on('tt-toggle-appupdate', 'change', (e) => {
+        if (!this.config) return;
+        this.config.updates = this.config.updates || {};
+        this.config.updates.autoCheck = e.target.checked;
       });
       this.on('tt-toggle-autoupdate', 'change', (e) => {
         if (this.config) this.config.tizentube.autoUpdateScript = e.target.checked;

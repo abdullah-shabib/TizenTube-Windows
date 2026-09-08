@@ -69,6 +69,13 @@
       "src/**/*",
       "assets/**/*",
       "package.json"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "abdullah-shabib",
+        "repo": "TizenTube-Windows"
+      }
     ]
   },
   "repository": {
@@ -76,6 +83,7 @@
     "url": "git+https://github.com/abdullah-shabib/TizenTube-Windows.git"
   },
   "dependencies": {
+    "electron-updater": "^6.8.9",
     "koffi": "^3.2.1"
   }
 }

@@ -52,6 +52,18 @@ jobs:
           }
           Write-Output "koffi.node unpacked at $($node.FullName)"
 
+      # electron-updater fetches latest.yml from the release to discover new
+      # versions. If it is missing the app silently never updates, with no
+      # build-time symptom, so treat its absence as a build failure.
+      - name: Verify latest.yml exists for the updater
+        shell: pwsh
+        run: |
+          if (-not (Test-Path dist/latest.yml)) {
+            Write-Error "dist/latest.yml was not produced; auto-update would not work."
+            exit 1
+          }
+          Get-Content dist/latest.yml
+
       - name: Generate checksums
         shell: pwsh
         run: |
@@ -68,6 +80,7 @@ jobs:
           name: tizentube-windows
           path: |
             dist/*.exe
+            dist/latest.yml
             dist/SHA256SUMS.txt
 
       # Draft, so the notes can be reviewed before anything goes public.
@@ -79,6 +92,7 @@ jobs:
           generate_release_notes: true
           files: |
             dist/*.exe
+            dist/latest.yml
             dist/SHA256SUMS.txt
           body: |
             `TizenTube-*-win-x64.exe` is the installer, `TizenTube-*-portable.exe`

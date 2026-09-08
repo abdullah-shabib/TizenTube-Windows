@@ -35,6 +35,7 @@ const SOURCES = [
   'src/main/main.js',
   'src/main/config.js',
   'src/main/native-vibration.js',
+  'src/main/updater.js',
   'src/preload/preload.js',
   'src/renderer/controller.js',
   'src/renderer/overlay.js',
