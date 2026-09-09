@@ -427,6 +427,12 @@
     { id: 'tt-input-deadzone', type: 'range' },
     { id: 'tt-input-repeat', type: 'range' },
     { id: 'tt-toggle-vibration', type: 'checkbox' },
+    { id: 'tt-toggle-discord', type: 'checkbox' },
+    { id: 'tt-toggle-tray', type: 'checkbox' },
+    { id: 'tt-btn-pip', type: 'button' },
+    { id: 'tt-select-sleeptimer', type: 'select' },
+    { id: 'tt-toggle-remote', type: 'checkbox' },
+    { id: 'tt-toggle-mouse', type: 'checkbox' },
     { id: 'tt-toggle-fullscreen', type: 'checkbox' },
     { id: 'tt-toggle-autohide', type: 'checkbox' },
     { id: 'tt-toggle-sleep', type: 'checkbox' },
@@ -514,7 +520,10 @@
           <div class="tt-section">
             <div class="tt-section-title">
               <span>Controller Diagnostics</span>
-              <span id="tt-controller-status" style="font-size: 13px; color: #888;">Scanning for controller...</span>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span id="tt-controller-battery" style="display: none; font-size: 13px; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: var(--tt-surface-3);"></span>
+                <span id="tt-controller-status" style="font-size: 13px; color: #888;">Scanning for controller...</span>
+              </div>
             </div>
             <div class="tt-gamepad-visualizer">
               <div class="tt-stick-box" id="tt-stick-box" title="Left Analog Stick position & Deadzone">
@@ -667,6 +676,104 @@
             </div>
           </div>
 
+          <!-- Section 5: Windows & HTPC Integration -->
+          <div class="tt-section">
+            <div class="tt-section-title">Windows & HTPC Integration</div>
+
+            <div class="tt-control-row">
+              <div>
+                <div class="tt-label">Discord Rich Presence</div>
+                <div class="tt-sublabel">Show current video, channel, and playback time on your Discord profile.</div>
+              </div>
+              <label class="tt-switch">
+                <input type="checkbox" id="tt-toggle-discord">
+                <span class="tt-switch-slider"></span>
+              </label>
+            </div>
+
+            <div class="tt-control-row">
+              <div>
+                <div class="tt-label">Minimize to System Tray</div>
+                <div class="tt-sublabel">Keep audio playing in the background without taskbar clutter when minimized.</div>
+              </div>
+              <label class="tt-switch">
+                <input type="checkbox" id="tt-toggle-tray">
+                <span class="tt-switch-slider"></span>
+              </label>
+            </div>
+
+            <div class="tt-control-row">
+              <div>
+                <div class="tt-label">Mini-Player (Picture-in-Picture)</div>
+                <div class="tt-sublabel">Compact floating borderless window (Hotkey: Ctrl+Shift+P or Alt+P).</div>
+              </div>
+              <button class="tt-action-btn" id="tt-btn-pip" style="padding: 6px 16px; font-size: 13px;">Toggle Mini-Player</button>
+            </div>
+
+            <div class="tt-control-row">
+              <div>
+                <div class="tt-label">Sleep Timer</div>
+                <div class="tt-sublabel">Automatically closes the app after the selected duration.</div>
+              </div>
+              <div class="tt-slider-group">
+                <select id="tt-select-sleeptimer" style="background: var(--tt-bg); color: var(--tt-text); border: 1px solid var(--tt-border-2); border-radius: var(--tt-radius-pill); padding: 6px 12px; font-size: 13px; font-family: var(--tt-font); cursor: pointer;">
+                  <option value="0">Off</option>
+                  <option value="15">15 Minutes</option>
+                  <option value="30">30 Minutes</option>
+                  <option value="45">45 Minutes</option>
+                  <option value="60">60 Minutes</option>
+                  <option value="90">90 Minutes</option>
+                  <option value="120">120 Minutes</option>
+                </select>
+                <span class="tt-value-display" id="tt-val-sleeptimer" style="min-width: 60px; font-size: 12px; color: var(--tt-accent);">Off</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 5: Mobile Remote & Typing Companion -->
+          <div class="tt-section">
+            <div class="tt-section-title">
+              <span>Mobile Typing Companion & Remote</span>
+              <span id="tt-remote-badge" style="font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: rgba(46, 160, 67, 0.2); color: #3fb950;">Active</span>
+            </div>
+
+            <div class="tt-control-row">
+              <div>
+                <div class="tt-label">Mobile Web Remote</div>
+                <div class="tt-sublabel">Scan the QR code or visit the local network URL on your phone to type search queries with phone keyboard/voice or control playback.</div>
+              </div>
+              <label class="tt-switch">
+                <input type="checkbox" id="tt-toggle-remote">
+                <span class="tt-switch-slider"></span>
+              </label>
+            </div>
+
+            <div id="tt-remote-info-box" style="display: flex; gap: 20px; align-items: center; margin-top: 14px; padding: 14px; background: var(--tt-surface); border-radius: 8px; border: 1px solid var(--tt-border);">
+              <div id="tt-remote-qr" style="width: 140px; height: 140px; background: #fff; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; padding: 6px;">
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div style="font-size: 13px; color: var(--tt-text-2);">Connect on your phone (same Wi-Fi):</div>
+                <div id="tt-remote-url" style="font-size: 16px; font-weight: 700; color: var(--tt-accent); font-family: monospace; user-select: text;">Loading...</div>
+                <div style="font-size: 12px; color: var(--tt-text-3);">Supports phone keyboard typing, voice dictation, and pasting YouTube links to play immediately on TV.</div>
+            </div>
+          </div>
+
+          <!-- Section 6: Mouse & Pointer Controls -->
+          <div class="tt-section">
+            <div class="tt-section-title">Mouse & Pointer Controls</div>
+
+            <div class="tt-control-row">
+              <div>
+                <div class="tt-label">On-Screen Mouse Controls</div>
+                <div class="tt-sublabel">Show video back button, volume slider bar, and carousel scroll buttons when using a mouse.</div>
+              </div>
+              <label class="tt-switch">
+                <input type="checkbox" id="tt-toggle-mouse">
+                <span class="tt-switch-slider"></span>
+              </label>
+            </div>
+          </div>
+
           <!-- Footer Actions: pinned to the bottom of the dialog -->
           <div class="tt-actions">
             <div class="tt-footer">
@@ -746,6 +853,37 @@
       this.setChecked('tt-toggle-sleep', display.preventDisplaySleep);
       this.setChecked('tt-toggle-autoupdate', tizentube.autoUpdateScript);
       this.setChecked('tt-toggle-appupdate', (this.config.updates || {}).autoCheck !== false);
+
+      const discord = this.config.discord || {};
+      const system = this.config.system || {};
+      const remote = this.config.remote || {};
+      const mouse = this.config.mouse || {};
+      this.setChecked('tt-toggle-discord', discord.enabled !== false);
+      this.setChecked('tt-toggle-tray', system.minimizeToTray !== false);
+      this.setChecked('tt-toggle-remote', remote.enabled !== false);
+      this.setChecked('tt-toggle-mouse', mouse.enabled !== false && mouse.onScreenControls !== false);
+
+      ipcRenderer.invoke('get-remote-info').then((info) => {
+        this.updateRemoteUI(info);
+      }).catch(() => {});
+
+      if (window.TizenTubeGamepadManager && window.TizenTubeGamepadManager.batteryStatus) {
+        this.updateBatteryStatus(window.TizenTubeGamepadManager.batteryStatus);
+      }
+
+      ipcRenderer.invoke('get-sleep-timer').then((status) => {
+        if (status && status.active && status.remainingMs > 0) {
+          const mins = Math.ceil(status.remainingMs / 60000);
+          this.setText('tt-val-sleeptimer', mins + 'm left');
+        } else {
+          this.setText('tt-val-sleeptimer', 'Off');
+        }
+      }).catch(() => {});
+
+      ipcRenderer.invoke('is-pip').then((pipActive) => {
+        const btn = document.getElementById('tt-btn-pip');
+        if (btn) btn.textContent = pipActive ? 'Exit Mini-Player' : 'Toggle Mini-Player';
+      }).catch(() => {});
 
       // If started in windowed mode, show startup prompt
       if (!display.fullscreen) {
@@ -847,6 +985,54 @@
       this.on('tt-toggle-autoupdate', 'change', (e) => {
         if (this.config) this.config.tizentube.autoUpdateScript = e.target.checked;
       });
+      this.on('tt-toggle-discord', 'change', (e) => {
+        if (!this.config) return;
+        this.config.discord = this.config.discord || {};
+        this.config.discord.enabled = e.target.checked;
+      });
+      this.on('tt-toggle-tray', 'change', (e) => {
+        if (!this.config) return;
+        this.config.system = this.config.system || {};
+        this.config.system.minimizeToTray = e.target.checked;
+      });
+
+      this.on('tt-btn-pip', 'click', () => {
+        ipcRenderer.invoke('toggle-pip');
+      });
+
+      this.on('tt-select-sleeptimer', 'change', (e) => {
+        const mins = parseInt(e.target.value, 10);
+        ipcRenderer.invoke('set-sleep-timer', { minutes: mins }).then((res) => {
+          if (res && res.active) {
+            this.setText('tt-val-sleeptimer', Math.ceil(res.remainingMs / 60000) + 'm left');
+          } else {
+            this.setText('tt-val-sleeptimer', 'Off');
+          }
+        }).catch(() => {});
+      });
+
+      this.on('tt-toggle-remote', 'change', async (e) => {
+        if (!this.config) return;
+        this.config.remote = this.config.remote || {};
+        this.config.remote.enabled = e.target.checked;
+        const res = await ipcRenderer.invoke('toggle-remote-server', e.target.checked);
+        this.updateRemoteUI(res);
+      });
+
+      this.on('tt-toggle-mouse', 'change', (e) => {
+        if (!this.config) return;
+        this.config.mouse = this.config.mouse || {};
+        this.config.mouse.enabled = e.target.checked;
+        this.config.mouse.onScreenControls = e.target.checked;
+        const mouseUI = document.getElementById('tt-mouse-ui');
+        if (mouseUI) {
+          mouseUI.style.display = e.target.checked ? '' : 'none';
+        }
+      });
+
+      window.addEventListener('tizentube-battery-status', (e) => {
+        this.updateBatteryStatus(e.detail);
+      });
 
       // Buttons
       this.on('tt-btn-close', 'click', () => this.toggle(false));
@@ -875,6 +1061,22 @@
       // Window events from GamepadManager & Main Process
       window.addEventListener('tizentube-toggle-overlay', () => this.toggle());
       ipcRenderer.on('toggle-overlay', () => this.toggle());
+
+      ipcRenderer.on('pip-changed', (event, active) => {
+        const btn = document.getElementById('tt-btn-pip');
+        if (btn) btn.textContent = active ? 'Exit Mini-Player' : 'Toggle Mini-Player';
+      });
+
+      ipcRenderer.on('sleep-timer-status', (event, status) => {
+        if (status && status.active && status.remainingMs > 0) {
+          const mins = Math.ceil(status.remainingMs / 60000);
+          this.setText('tt-val-sleeptimer', mins + 'm left');
+        } else {
+          this.setText('tt-val-sleeptimer', 'Off');
+          const select = document.getElementById('tt-select-sleeptimer');
+          if (select) select.value = '0';
+        }
+      });
 
       // The resulting fullscreen-changed broadcast updates our copy and the UI.
       window.addEventListener('tizentube-toggle-fullscreen', () => {
@@ -957,6 +1159,59 @@
       for (const [index, pill] of this.buttonPills) {
         const btn = gamepad.buttons[index];
         pill.classList.toggle('pressed', !!(btn && (btn.pressed || btn.value > 0.5)));
+      }
+    }
+
+    updateBatteryStatus(info) {
+      const el = document.getElementById('tt-controller-battery');
+      if (!el || !info || !info.connected) {
+        if (el) el.style.display = 'none';
+        return;
+      }
+
+      el.style.display = 'inline-block';
+      if (info.isWired) {
+        el.textContent = '🔋 Wired';
+        el.style.color = '#3fb950';
+      } else if (info.level === 'low' || info.level === 'empty' || info.percent <= 20) {
+        el.textContent = `🪫 ${info.percent}% (Low)`;
+        el.style.color = '#f85149';
+      } else {
+        el.textContent = `🔋 ${info.percent}%`;
+        el.style.color = '#3fb950';
+      }
+    }
+
+    updateRemoteUI(info) {
+      const badge = document.getElementById('tt-remote-badge');
+      const box = document.getElementById('tt-remote-info-box');
+      const qrEl = document.getElementById('tt-remote-qr');
+      const urlEl = document.getElementById('tt-remote-url');
+      const toggle = document.getElementById('tt-toggle-remote');
+
+      const isOnline = info && info.enabled;
+      if (toggle) toggle.checked = !!isOnline;
+
+      if (badge) {
+        badge.textContent = isOnline ? 'Active' : 'Offline';
+        badge.style.background = isOnline ? 'rgba(46, 160, 67, 0.2)' : 'rgba(248, 81, 73, 0.2)';
+        badge.style.color = isOnline ? '#3fb950' : '#f85149';
+      }
+
+      if (box) {
+        box.style.opacity = isOnline ? '1' : '0.4';
+      }
+
+      if (urlEl) {
+        urlEl.textContent = (info && info.url) || 'Server offline';
+      }
+
+      if (qrEl) {
+        if (info && info.qrSvg) {
+          qrEl.innerHTML = this.getSafeHTML(info.qrSvg);
+        } else {
+          qrEl.innerHTML = '';
+        }
       }
     }
 
@@ -1088,6 +1343,15 @@
         // only way to change a toggle.
         case 'ArrowLeft':
         case 'ArrowRight': {
+          if (entry.type === 'select') {
+            const forward = action === 'ArrowRight';
+            const nextIdx = entry.el.selectedIndex + (forward ? 1 : -1);
+            if (nextIdx >= 0 && nextIdx < entry.el.options.length) {
+              entry.el.selectedIndex = nextIdx;
+              entry.el.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            break;
+          }
           if (entry.type !== 'range') break;
           const forward = action === 'ArrowRight';
           const step = parseFloat(entry.el.step) || 1;
@@ -1105,6 +1369,10 @@
             entry.el.dispatchEvent(new Event('change', { bubbles: true }));
           } else if (entry.type === 'button') {
             entry.el.click();
+          } else if (entry.type === 'select') {
+            const nextIdx = (entry.el.selectedIndex + 1) % entry.el.options.length;
+            entry.el.selectedIndex = nextIdx;
+            entry.el.dispatchEvent(new Event('change', { bubbles: true }));
           }
           break;
         default:

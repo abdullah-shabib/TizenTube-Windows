@@ -40,6 +40,11 @@ function registerXInputTypes() {
     wRightMotorSpeed: 'uint16'
   });
 
+  koffi.struct('XINPUT_BATTERY_INFORMATION', {
+    BatteryType: 'uint8',
+    BatteryLevel: 'uint8'
+  });
+
   typesRegistered = true;
 }
 
@@ -56,6 +61,7 @@ class NativeVibrationManager {
     this.enabled = options.enabled !== false;
     this.lib = null;
     this.XInputSetState = null;
+    this.XInputGetBatteryInformation = null;
     this.activeTimers = new Map(); // slot -> timer
 
     this.init();
@@ -84,6 +90,11 @@ class NativeVibrationManager {
 
       registerXInputTypes();
       this.XInputSetState = this.lib.func('uint32 __stdcall XInputSetState(uint32 dwUserIndex, XINPUT_VIBRATION_NATIVE *pVibration)');
+      try {
+        this.XInputGetBatteryInformation = this.lib.func('uint32 __stdcall XInputGetBatteryInformation(uint32 dwUserIndex, uint8 devType, _Out_ XINPUT_BATTERY_INFORMATION *pBatteryInformation)');
+      } catch (err) {
+        console.warn('[TizenTube Vibration] XInputGetBatteryInformation unavailable:', err.message);
+      }
     } catch (err) {
       console.error('[TizenTube Vibration] Initialization error:', err.message);
     }
@@ -137,6 +148,69 @@ class NativeVibrationManager {
   pulse(profileName, slot = 0) {
     const profile = HAPTIC_PROFILES[profileName] || HAPTIC_PROFILES.button;
     this.vibrate(slot, profile.left, profile.right, profile.duration);
+  }
+
+  /**
+   * Query XInput battery status for controller slot (0-3).
+   * @param {number} slot Controller index (0-3)
+   * @returns {{ connected: boolean, isWired: boolean, level: string, percent: number, supported: boolean }}
+   */
+  getBatteryStatus(slot = 0) {
+    if (!this.XInputGetBatteryInformation) {
+      return { connected: false, supported: false, isWired: false, level: 'unknown', percent: 100 };
+    }
+
+    try {
+      const info = {};
+      const res = this.XInputGetBatteryInformation(slot, 0, info); // devType 0 = BATTERY_DEVTYPE_GAMEPAD
+      if (res !== 0) {
+        // ERROR_DEVICE_NOT_CONNECTED (1167)
+        return { connected: false, supported: true, isWired: false, level: 'disconnected', percent: 0 };
+      }
+
+      // 0x00 = DISCONNECTED, 0x01 = WIRED, 0x02 = ALKALINE, 0x03 = NIMH, 0xFF = UNKNOWN
+      const isWired = info.BatteryType === 1;
+      const isDisconnected = info.BatteryType === 0;
+
+      // 0x00 = EMPTY (~5%), 0x01 = LOW (~20%), 0x02 = MEDIUM (~60%), 0x03 = FULL (~100%)
+      let level = 'unknown';
+      let percent = 100;
+      if (isWired) {
+        level = 'wired';
+        percent = 100;
+      } else if (!isDisconnected) {
+        switch (info.BatteryLevel) {
+          case 0:
+            level = 'empty';
+            percent = 5;
+            break;
+          case 1:
+            level = 'low';
+            percent = 20;
+            break;
+          case 2:
+            level = 'medium';
+            percent = 60;
+            break;
+          case 3:
+            level = 'full';
+            percent = 100;
+            break;
+        }
+      }
+
+      return {
+        connected: !isDisconnected,
+        isWired,
+        level,
+        percent,
+        batteryType: info.BatteryType,
+        batteryLevelRaw: info.BatteryLevel,
+        supported: true
+      };
+    } catch (err) {
+      return { connected: false, supported: false, isWired: false, level: 'error', percent: 0, error: err.message };
+    }
   }
 
   stopAll() {
