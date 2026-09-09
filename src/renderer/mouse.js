@@ -714,20 +714,19 @@
           return;
         }
 
+        e.preventDefault();
+
         const now = performance.now();
-        if (now - this.lastWheelStepTime < 240) {
+        if (now - this.lastWheelStepTime < 280) {
           // Still in cooldown period; prevent runaway events
-          e.preventDefault();
           return;
         }
 
-        const threshold = 55;
+        const threshold = 40;
         if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && Math.abs(e.deltaX) > threshold) {
-          e.preventDefault();
           this.lastWheelStepTime = now;
           this.sendKey(e.deltaX > 0 ? 'Right' : 'Left');
         } else if (Math.abs(e.deltaY) > threshold) {
-          e.preventDefault();
           this.lastWheelStepTime = now;
           // Vertical wheel scrolls rows: Down for down, Up for up
           this.sendKey(e.deltaY > 0 ? 'Down' : 'Up');
@@ -767,51 +766,12 @@
 
       // 4. Send native Escape to exit player or return to previous screen
       this.sendKey('Escape');
-
-      // 5. In Leanback, if first Escape merely reveals player controls, send a follow-up
-      // or history.back() to reliably exit the video player
-      if (this.isInsideVideo()) {
-        setTimeout(() => {
-          if (this.isInsideVideo()) {
-            this.sendKey('Escape');
-          }
-        }, 160);
-      }
     }
 
     sendKey(keyCode) {
       if (!keyCode) return;
-
-      // 1. Send native Chromium key event via main process
+      // Dispatch single native Chromium key event via main process
       ipcRenderer.send('send-native-key', { keyCode });
-
-      // 2. Also dispatch trusted-style DOM KeyboardEvent directly to active element / body
-      try {
-        const keyMap = {
-          Return: 'Enter',
-          Up: 'ArrowUp',
-          Down: 'ArrowDown',
-          Left: 'ArrowLeft',
-          Right: 'ArrowRight',
-          Escape: 'Escape'
-        };
-        const key = keyMap[keyCode] || keyCode;
-        const code = key === 'Enter' ? 'Enter' : (key === 'Escape' ? 'Escape' : key);
-        const whichMap = { Escape: 27, Return: 13, Left: 37, Up: 38, Right: 39, Down: 40 };
-        const which = whichMap[keyCode] || 0;
-
-        const target = (document.activeElement && document.activeElement !== document.body) 
-          ? document.activeElement 
-          : (document.getElementById('movie_player') || document.body || window);
-
-        const downEvt = new KeyboardEvent('keydown', { key, code, keyCode: which, which, bubbles: true, cancelable: true });
-        target.dispatchEvent(downEvt);
-
-        setTimeout(() => {
-          const upEvt = new KeyboardEvent('keyup', { key, code, keyCode: which, which, bubbles: true, cancelable: true });
-          target.dispatchEvent(upEvt);
-        }, 30);
-      } catch (err) {}
     }
   }
 
