@@ -54,6 +54,27 @@ const MIN_SCRIPT_BYTES = 100000;
 
 const BUNDLED_SCRIPT_PATH = path.join(__dirname, '..', 'scripts', 'tizentube-bundle.js');
 
+// The renderer runs with Node integration, so the top frame may only ever show
+// YouTube or the Google pages its sign-in and cookie-consent flows pass through.
+// Anything else would get full access to the machine.
+const ALLOWED_HOSTS = new Set(['youtube.com', 'accounts.google.com', 'consent.google.com']);
+
+function isAllowedNavigation(url) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch (e) {
+    return false;
+  }
+  if (parsed.protocol !== 'https:') return false;
+  const host = parsed.hostname;
+  return ALLOWED_HOSTS.has(host) || host.endsWith('.youtube.com');
+}
+
+// The keys the controller is allowed to synthesise; see ACTION_MAPPINGS in
+// controller.js. The renderer is not trusted to name arbitrary key codes.
+const NATIVE_KEYS = new Set(['Up', 'Down', 'Left', 'Right', 'Return', 'Escape', 'Space', '/']);
+
 function sha256(buffer) {
   return crypto.createHash('sha256').update(buffer).digest('hex');
 }
@@ -297,6 +318,17 @@ function createWindow() {
     return { action: 'deny' };
   });
 
+  // Same reasoning for navigating the window itself, by link or by redirect.
+  // Subframes are left alone: they do not get Node integration, and ad and
+  // embed iframes redirect across hosts all the time.
+  const blockForeignNavigation = (details) => {
+    if (!details.isMainFrame || isAllowedNavigation(details.url)) return;
+    details.preventDefault();
+    console.warn('[TizenTube] Blocked navigation to:', details.url);
+  };
+  mainWindow.webContents.on('will-navigate', blockForeignNavigation);
+  mainWindow.webContents.on('will-redirect', blockForeignNavigation);
+
   // Check for an app update once the window is up, so a slow or failing
   // network never delays startup.
   mainWindow.webContents.once('did-finish-load', () => {
@@ -353,8 +385,13 @@ function createWindow() {
 }
 
 // Native input event dispatch from Gamepad controller loop
-ipcMain.on('send-native-key', (event, { keyCode }) => {
-  if (mainWindow && mainWindow.webContents && keyCode) {
+ipcMain.on('send-native-key', (event, payload) => {
+  const keyCode = payload && payload.keyCode;
+  if (!NATIVE_KEYS.has(keyCode)) {
+    console.warn('[TizenTube] Ignored send-native-key for an unexpected key:', keyCode);
+    return;
+  }
+  if (mainWindow && mainWindow.webContents) {
     mainWindow.webContents.sendInputEvent({ type: 'keyDown', keyCode });
     setTimeout(() => {
       if (mainWindow && mainWindow.webContents) {
