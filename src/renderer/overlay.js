@@ -816,7 +816,7 @@
         this.config.controller.vibration = e.target.checked;
         this.pushConfigToController();
         if (e.target.checked && window.TizenTubeGamepadManager) {
-          window.TizenTubeGamepadManager.triggerHaptic('test', 0);
+          window.TizenTubeGamepadManager.triggerHaptic('test');
         }
       });
       this.on('tt-toggle-mute', 'change', (e) => {

@@ -364,11 +364,12 @@ ipcMain.on('send-native-key', (event, { keyCode }) => {
   }
 });
 
-// Native controller haptic vibration dispatch
-ipcMain.on('controller-vibrate', (event, { type, slot }) => {
-  if (nativeVibration && nativeVibration.isAvailable()) {
-    nativeVibration.pulse(type || 'button', slot || 0);
-  }
+// Native controller haptic vibration. Resolves false when no XInput controller
+// matched, so the renderer can use the Web Gamepad actuator instead.
+ipcMain.handle('controller-vibrate', (event, payload) => {
+  const { type, xinputOrdinal } = payload || {};
+  if (!Number.isInteger(xinputOrdinal) || xinputOrdinal < 0) return false;
+  return nativeVibration.pulseNth(type || 'button', xinputOrdinal);
 });
 
 // Lets the renderer decide whether it needs the Web Gamepad actuator fallback,
