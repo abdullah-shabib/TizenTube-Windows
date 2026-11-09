@@ -76,6 +76,39 @@
     }
   };
 
+  // Chromium names every XInput device "... (XInput STANDARD GAMEPAD)".
+  function isXInputPad(pad) {
+    return /\bXInput\b/i.test(pad.id || '');
+  }
+
+  // Position of pad among the connected XInput pads, in index order, or -1.
+  // The main process maps this onto the n-th connected XInput user index; see
+  // pulseNth in native-vibration.js for why the raw index cannot be used.
+  function xinputOrdinalOf(gamepads, pad) {
+    if (!isXInputPad(pad)) return -1;
+    let ordinal = 0;
+    for (const other of gamepads) {
+      if (!other || !other.connected || !isXInputPad(other)) continue;
+      if (other === pad || other.index === pad.index) return ordinal;
+      ordinal++;
+    }
+    return -1;
+  }
+
+  function playWebEffect(pad, type) {
+    try {
+      const actuator = pad.vibrationActuator;
+      if (!actuator || typeof actuator.playEffect !== 'function') return;
+      const effect = WEB_HAPTIC_EFFECTS[type] || WEB_HAPTIC_EFFECTS.button;
+      actuator.playEffect('dual-rumble', {
+        startDelay: 0,
+        duration: effect.duration,
+        weakMagnitude: effect.magnitude,
+        strongMagnitude: effect.magnitude
+      }).catch(() => {});
+    } catch (e) {}
+  }
+
   // Run fn once the document has an element we can append to. At preload time
   // (document-start) both document.head and document.documentElement are still
   // null, so anything touching the DOM has to wait.
@@ -282,30 +315,29 @@
     // Exactly one haptic path runs per pulse. Native XInput and the Web Gamepad
     // actuator both end up driving the same motors on Windows, so firing both
     // makes them fight over magnitude and cut each other's pulse short.
-    triggerHaptic(type, slot = 0) {
+    //
+    // padIndex is a navigator.getGamepads() index; it defaults to the pad
+    // currently driving the app.
+    triggerHaptic(type, padIndex = this.activeGamepadIndex) {
       const controller = (this.config && this.config.controller) || {};
       if (controller.vibration === false) return;
 
-      if (this.nativeHapticsAvailable) {
-        ipcRenderer.send('controller-vibrate', { type, slot: slot || 0 });
+      const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+      const pad = padIndex === null || padIndex === undefined ? null : gamepads[padIndex];
+      if (!pad || !pad.connected) return;
+
+      // Only XInput pads can be reached natively. Anything else (a DualSense or
+      // DualShock, or a pad Chromium exposes another way) goes straight to the
+      // browser's actuator.
+      const xinputOrdinal = this.nativeHapticsAvailable ? xinputOrdinalOf(gamepads, pad) : -1;
+      if (xinputOrdinal < 0) {
+        playWebEffect(pad, type);
         return;
       }
 
-      // No native XInput (a DualSense/DualShock over Bluetooth, or the koffi
-      // binding did not load), so drive the pad through the browser instead.
-      try {
-        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-        const pad = gamepads[slot];
-        if (pad && pad.vibrationActuator && typeof pad.vibrationActuator.playEffect === 'function') {
-          const effect = WEB_HAPTIC_EFFECTS[type] || WEB_HAPTIC_EFFECTS.button;
-          pad.vibrationActuator.playEffect('dual-rumble', {
-            startDelay: 0,
-            duration: effect.duration,
-            weakMagnitude: effect.magnitude,
-            strongMagnitude: effect.magnitude
-          }).catch(() => {});
-        }
-      } catch (e) {}
+      ipcRenderer.invoke('controller-vibrate', { type, xinputOrdinal })
+        .then((handled) => { if (!handled) playWebEffect(pad, type); })
+        .catch(() => playWebEffect(pad, type));
     }
 
     handleDirection(dirName, isPressed, now) {
@@ -320,7 +352,7 @@
           state.isPressed = true;
           state.firstPressedTime = now;
           state.lastRepeatTime = now;
-          this.triggerHaptic('stick', this.activeGamepadIndex || 0);
+          this.triggerHaptic('stick');
           this.executeAction(actionName);
         } else if (now - state.firstPressedTime >= initialDelay &&
                    now - state.lastRepeatTime >= repeatInterval) {
@@ -344,7 +376,7 @@
           state.isPressed = true;
           state.firstPressedTime = now;
           state.lastRepeatTime = now;
-          this.triggerHaptic('stick', this.activeGamepadIndex || 0);
+          this.triggerHaptic('stick');
           this.executeAction(actionName);
         } else if (now - state.firstPressedTime >= initialDelay &&
                    now - state.lastRepeatTime >= repeatInterval) {

@@ -40,8 +40,26 @@ function registerXInputTypes() {
     wRightMotorSpeed: 'uint16'
   });
 
+  koffi.struct('XINPUT_GAMEPAD_NATIVE', {
+    wButtons: 'uint16',
+    bLeftTrigger: 'uint8',
+    bRightTrigger: 'uint8',
+    sThumbLX: 'int16',
+    sThumbLY: 'int16',
+    sThumbRX: 'int16',
+    sThumbRY: 'int16'
+  });
+
+  koffi.struct('XINPUT_STATE_NATIVE', {
+    dwPacketNumber: 'uint32',
+    Gamepad: 'XINPUT_GAMEPAD_NATIVE'
+  });
+
   typesRegistered = true;
 }
+
+const ERROR_SUCCESS = 0;
+const XUSER_MAX_COUNT = 4;
 
 // Haptic feedback profiles (intensity 0-65535, duration in ms)
 const HAPTIC_PROFILES = {
@@ -56,6 +74,7 @@ class NativeVibrationManager {
     this.enabled = options.enabled !== false;
     this.lib = null;
     this.XInputSetState = null;
+    this.XInputGetState = null;
     this.activeTimers = new Map(); // slot -> timer
 
     this.init();
@@ -83,6 +102,7 @@ class NativeVibrationManager {
       }
 
       registerXInputTypes();
+      this.XInputGetState = this.lib.func('uint32 __stdcall XInputGetState(uint32 dwUserIndex, _Out_ XINPUT_STATE_NATIVE *pState)');
       this.XInputSetState = this.lib.func('uint32 __stdcall XInputSetState(uint32 dwUserIndex, XINPUT_VIBRATION_NATIVE *pVibration)');
     } catch (err) {
       console.error('[TizenTube Vibration] Initialization error:', err.message);
@@ -129,14 +149,42 @@ class NativeVibrationManager {
     }
   }
 
+  // XInput user indices (0-3) that currently have a controller attached.
+  connectedSlots() {
+    const slots = [];
+    for (let slot = 0; slot < XUSER_MAX_COUNT; slot++) {
+      try {
+        if (this.XInputGetState(slot, {}) === ERROR_SUCCESS) slots.push(slot);
+      } catch (e) {}
+    }
+    return slots;
+  }
+
   /**
-   * Trigger predefined haptic feedback profile.
+   * Pulse the n-th connected XInput controller.
+   *
+   * The renderer cannot name an XInput slot: navigator.getGamepads() indices
+   * are assigned by Chromium and do not match XInput user indices once a
+   * non-XInput pad is attached or pads reconnect. It counts XInput pads in its
+   * own list instead, and both sides enumerate them in ascending order.
+   *
+   * Returns false when no XInput controller matches, so the caller can fall
+   * back to the Web Gamepad actuator.
+   *
    * @param {string} profileName 'connect' | 'button' | 'stick' | 'test'
-   * @param {number} slot Controller slot (0-3)
+   * @param {number} ordinal Position among connected XInput controllers
    */
-  pulse(profileName, slot = 0) {
+  pulseNth(profileName, ordinal) {
+    if (!this.XInputSetState || !this.XInputGetState) return false;
+    // Disabled means "do nothing", not "try another path".
+    if (!this.enabled) return true;
+
+    const slot = this.connectedSlots()[ordinal];
+    if (slot === undefined) return false;
+
     const profile = HAPTIC_PROFILES[profileName] || HAPTIC_PROFILES.button;
     this.vibrate(slot, profile.left, profile.right, profile.duration);
+    return true;
   }
 
   stopAll() {
